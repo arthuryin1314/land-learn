@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文献知识地图</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  main { max-width: 900px; }
+  .legend { font-family: var(--sans); font-size: .85rem; display: flex; flex-wrap: wrap; gap: .6rem 1.4rem; margin: 1rem 0; }
+  .k { border-top: 1px solid var(--rule); padding: .9rem 0 .4rem; }
+  .k h3 { margin: 0 0 .35rem; font-size: 1.05rem; }
+  .k p { margin: .25rem 0; font-size: .95rem; }
+  .ex::before { content: "💬 "; }
+  .pa::before { content: "📄 "; }
+  .me::before { content: "🎯 "; }
+  .ex { color: var(--fg); }
+  .pa { color: var(--fg); }
+  .me { color: var(--accent); }
+  .p { font-family: var(--sans); font-size: .78rem; color: var(--muted); white-space: nowrap; }
+  .lit th, .lit td { font-size: .8rem; line-height: 1.5; }
+  .lit td:first-child { font-family: var(--sans); font-weight: 600; white-space: nowrap; }
+  .pri { font-family: var(--sans); font-size: .72rem; padding: .05rem .45rem; border-radius: 99px; background: var(--accent-soft); color: var(--accent); margin-left: .4rem; vertical-align: middle; }
+  ol.syllabus li { margin: .35rem 0; }
+  ol.syllabus .done { color: var(--muted); text-decoration: line-through; }
+</style>
+</head>
+<body>
+<main>
+<header class="lesson-head">
+  <div class="kicker">参考文档 · 随课程更新</div>
+  <h1>文献知识地图：12 篇论文里的基础知识</h1>
+  <p class="subtitle">把导师给的 12 篇论文中和你三章相关的知识点按章节归类，每条都标出处。这是后续课程的大纲。</p>
+</header>
+
+<div class="box goal">
+  <div class="box-title">怎么读这份地图</div>
+  <div class="legend">
+    <span>💬 我的讲解（通用概念，后续课程会配权威来源）</span>
+    <span>📄 论文笔记里写了什么（标篇号和页码）</span>
+    <span>🎯 对你论文的意义（我的建议）</span>
+  </div>
+  <p style="font-size:.9rem">依据是 <code>paper/地表沉降论文</code> 下各篇的 <code>paper_report.zh.md</code>。笔记自称只依据 PDF 原文，P05、P06 两篇我也直接核对过 PDF。"p.X" 指 PDF 物理页码。篇号对照见第 0 节。</p>
+</div>
+
+<h2>0. 十二篇论文对照表</h2>
+<p>写开题报告的"国内外研究现状"时可以直接从这张表出发。"—"表示笔记中没有提到。</p>
+<div class="table-wrap"><table class="lit">
+<tr><th>篇号</th><th>研究区</th><th>InSAR 方法 / 软件</th><th>垂向怎么得到</th><th>精度验证</th><th>土地覆盖 / 光学影像</th><th>地下水数据</th><th>成因分析方法</th></tr>
+<tr><td>P01</td><td>京津冀平原</td><td>IPTA，3 条升轨</td><td>LOS/cosθ，假设水平可忽略</td><td>水准</td><td>—</td><td>水位年鉴 2018–2024</td><td>季节项/长期项拆分 + 特征 K-means + STFT 滞后 + 指数衰减</td></tr>
+<tr><td>P02</td><td>越南湄公河三角洲</td><td>持久散射体结果（降轨）</td><td>—</td><td>—</td><td>土地利用 + 水管理分区</td><td>无（作者说明未用）</td><td>降水回归预测季节位移、分段线性</td></tr>
+<tr><td>P03</td><td>全球 40 个三角洲</td><td>WabInSAR（GAMMA 干涉）</td><td>27 个升降轨分解，13 个 LOS/cosθ</td><td>GNSS</td><td>人口、城市扩张</td><td>GRACE 储量 + 井</td><td>随机森林 + LIME</td></tr>
+<tr><td>P04</td><td>华北平原</td><td>GAMMA + 自编 SBAS</td><td>LOS/cosθ</td><td>GNSS 8 站</td><td>—</td><td>472 口井</td><td>骨架储水系数 Ske、体积应变反演、断层叠加</td></tr>
+<tr><td>P05</td><td>白鹤滩水库（滑坡）</td><td>SBAS（SARScape）</td><td>升降轨二维分解</td><td>野外、UAV、LiDAR</td><td>NDVI、多时相影像</td><td>—</td><td>树模型 + SHAP + 列联矩阵</td></tr>
+<tr><td><b>P06</b></td><td><b>江苏全省</b></td><td>MCTSB-InSAR（GDEMSI）</td><td>仅升轨，LOS/cosθ</td><td>水准 527 点</td><td>历史光学影像（Google Earth）</td><td>野外看到的水井</td><td>时序形态 + 历史影像 + 野外访谈</td></tr>
+<tr><td>P07</td><td>印尼爪哇岛</td><td>WabInSAR</td><td>升降轨分解</td><td>GNSS 26 站</td><td>ESA WorldCover、Google Earth</td><td>—</td><td>PCA + k-means + DBSCAN + DTW 聚类，事后归因</td></tr>
+<tr><td><b>P08</b></td><td><b>鲁苏沿海</b></td><td>ISCE + MintPy（SBAS）</td><td>主要升轨 LOS/cosθ</td><td>GNSS 9 站；升降轨交叉比对</td><td>Landsat 30 m 年度土地覆盖 + Sentinel-2</td><td>水位 2018–2021</td><td>Sentinel-2 解译 + PCA + 水位趋势对比</td></tr>
+<tr><td>P09</td><td>华北平原</td><td>LiCSBAS 逐 frame</td><td>板块运动约束的投影</td><td>独立 GNSS 8 站</td><td>Copernicus 100 m 土地覆盖</td><td>1853 口井</td><td>储量损失估算；机器学习用于平差</td></tr>
+<tr><td>P10</td><td>美国全国</td><td>ASF On Demand 干涉图 + Stacking</td><td>保留 LOS</td><td>GNSS 4242 站</td><td>土地覆盖、耕地类型</td><td>48,341 口井</td><td>深度学习识别沉降区 + 叠加统计（作者说明不确立因果）</td></tr>
+<tr><td><b>P11</b></td><td>鲁北平原</td><td><b>HyP3 + MintPy</b></td><td>LOS 转垂向</td><td>3 个分层标</td><td>CLCD 30 m + Sentinel-2</td><td>监测井</td><td>PCA + NMF + FastICA + 井相关；CNN-LSTM 预测</td></tr>
+<tr><td>P12</td><td>伊朗全国</td><td>COMET-LiCS + LiCSBAS</td><td>升降轨分解</td><td>无独立垂向验证</td><td>土地覆盖</td><td>无（用降水代替）</td><td>时间域 FastICA 分离弹性/非弹性</td></tr>
+</table></div>
+<p class="me">P11 用的正是我们计划的 <b>HyP3 + MintPy</b>，P08（覆盖江苏沿海）用的是 MintPy，P12 用的是 LiCSBAS。也就是说，开源流程已有同类研究发表过，开题时可以拿这几篇说明技术路线可行。</p>
+
+<h2>第一章：用 InSAR 检测沉降</h2>
+
+<h3 style="margin-top:1.4rem">A. 数据：Sentinel-1</h3>
+
+<div class="k"><h3>A1. 轨道、frame、升轨与降轨<span class="pri">开题必讲</span></h3>
+<p class="ex">卫星由南往北飞时拍的叫升轨，由北往南飞时拍的叫降轨。两者从不同方向斜着看地面。一条轨道上的数据被切成一块块的 frame（景）。</p>
+<p class="pa">江苏降轨数据很稀少，不够做时序分析，所以 P06 只用升轨，6 个 frame、3 条轨道（P142、69、171）<span class="p">P06 p.2–3</span>。P08 说明 Sentinel-1B 于 2021-12-23 停止工作、Sentinel-1A 几乎没有降轨数据，所以也主要用升轨<span class="p">P08 p.2</span>。P08 覆盖鲁苏沿海用了 7 条轨道、16 个 frame，原始数据约 10 TB<span class="p">P08 p.2</span>。</p>
+<p class="me">"江苏基本只有升轨"直接决定你能不能做升降轨分解（见 C2）。动手前要亲自去 ASF 查一下你选的时段里江苏到底有哪些轨道。</p></div>
+
+<div class="k"><h3>A2. 数据获取平台与 DEM</h3>
+<p class="pa">Sentinel-1 数据来源：ASF<span class="p">P05 p.22；P10 p.16</span>；P11 用 HyP3 生成干涉图<span class="p">P11 p.4</span>；P12 用 COMET-LiCS 干涉图<span class="p">P12 p.3–5</span>。DEM 有 SRTM<span class="p">P06</span>、NASADEM<span class="p">P08</span>、Copernicus<span class="p">P05、P10</span>、TanDEM-X<span class="p">P09</span>、AW3D30<span class="p">P04</span>，用来去除地形相位。</p></div>
+
+<h3 style="margin-top:1.4rem">B. 处理：从干涉图到速率图</h3>
+
+<div class="k"><h3>B1. 干涉相位里混着什么<span class="pri">开题必讲</span></h3>
+<p class="pa">干涉相位 ≈ 形变 + 地形误差 + 大气延迟 + 噪声<span class="p">P05 式 2，p.6</span>。</p>
+<p class="ex">第 1 课里只讲了"形变"这一项。InSAR 处理的大部分工作，就是把另外三项尽量去掉。</p></div>
+
+<div class="k"><h3>B2. 时序方法：SBAS 与 PS<span class="pri">开题必讲</span></h3>
+<p class="ex">PS 只挑在所有影像里散射都稳定的点（多是建筑等人工目标）。SBAS 只用时间间隔短、轨道间距小的影像配对，能保住更多自然地表的点。</p>
+<p class="pa">P05 因为植被导致失相干，选了 SBAS，理由是它利用分布式散射体，能得到更多相干像元<span class="p">P05 p.6</span>。P11 写道 SBAS 可靠性低于 PS，但监测点更多<span class="p">P11 p.15</span>。配对阈值举例：60 天/200 m<span class="p">P05</span>，80 天/250 m<span class="p">P04</span>，36 天/200 m<span class="p">P11</span>。</p>
+<p class="me">江苏农田多，选 SBAS 的理由和 P05 是同一类。这是开题时被问"为什么选这个方法"的标准答法。</p></div>
+
+<div class="k"><h3>B3. 配准、多视、滤波、解缠</h3>
+<p class="ex">配准：把不同日期的影像对齐到同一个像素网格。多视：相邻像素取平均，用分辨率换更低的噪声。滤波：压掉干涉图里的噪声。解缠：第 1 课讲过的"把锯齿拼回连续曲线"。</p>
+<p class="pa">Sentinel-1 的 TOPS 模式对方位向配准要求极高，至少要千分之一像元，否则 burst 边缘会出现相位不连续；P06 用三级配准，最后一级用 ESD 法<span class="p">P06 p.4</span>。解缠多用最小费用流（MCF）<span class="p">P01、P04、P05、P09 等</span>。P04、P08、P12 用"相位闭合"检查和改正解缠错误<span class="p">P04 p.5；P08 p.3–4；P12 p.3–4</span>。</p></div>
+
+<div class="k"><h3>B4. 大气误差：江苏夏天的问题<span class="pri">开题必讲</span></h3>
+<p class="pa">P06 发现两景影像都在夏季（6–9 月）拍摄时，干涉图受对流层强烈干扰，作者把这些干涉图剔除了，所以实际用的影像少于存档数量<span class="p">P06 p.5–6</span>。其他论文的大气改正：GACOS<span class="p">P08、P09、P12</span>，ERA-5<span class="p">P11</span>，按高程线性回归<span class="p">P04</span>。</p>
+<p class="me">这是江苏本地的经验，你自己处理时很可能碰到同样的问题。MintPy 里怎么处理，后面的软件课会讲。</p></div>
+
+<div class="k"><h3>B5. 失相干：农田与采矿区<span class="pri">开题必讲</span></h3>
+<p class="pa">徐州采煤区农田地表频繁变化，几乎提不出相干点，相干点只在电线杆、建筑等人工目标上<span class="p">P06 p.13</span>。作者发现 10 月到次年 3 月（地表裸露或小麦刚出苗时）的 12/24 天干涉图相干性好，用这个时段算出某工作面累计形变达 670 mm<span class="p">P06 p.13</span>。P04 说夏季作物生长导致相干性下降<span class="p">P04 p.13</span>。P02 说 InSAR 测点主要落在基础深度不一的人工建筑上<span class="p">P02 p.7</span>。</p>
+<p class="me">这和你的第二章直接相关：测点偏向建筑，农田测点少。P06 的"冬季窗口"是一个可以借鉴的补救办法。</p></div>
+
+<h3 style="margin-top:1.4rem">C. 几何：从视线向到垂直，从一景到全省</h3>
+
+<div class="k"><h3>C1. LOS 除以 cosθ 及其假设<span class="pri">开题必讲</span></h3>
+<p class="pa">P01、P04、P06、P08、P11 都用 LOS/cosθ 得到垂向，前提是假设水平形变可忽略<span class="p">P06 p.6；P01 p.4；P04 p.5</span>。P06 的依据是引用文献称江苏以沉降和抬升为主<span class="p">P06 p.6</span>。P08 在有升降轨的部分区域检验后发现水平形变不显著<span class="p">P08 p.6</span>。P03 对 13 个单轨三角洲做了同样的假设，但作者自己说这个假设在多数海岸区"tenuous"（站不太住）<span class="p">P03 p.10</span>。</p>
+<p class="me">开题时要说明你凭什么用这个假设：引用 P06、P08，并说明假设的局限。</p></div>
+
+<div class="k"><h3>C2. 升降轨二维分解</h3>
+<p class="pa">P03、P05、P07、P12 用升降轨联合解出垂向和东西向分量；南北向对观测几何不敏感<span class="p">P05 p.6–7</span>。</p>
+<p class="me">受 A1 的数据限制，你在江苏大概率做不了全省分解，最多在有降轨覆盖的局部区域检验，做法同 P08。</p></div>
+
+<div class="k"><h3>C3. 多 frame 拼接<span class="pri">全省必做</span></h3>
+<p class="ex">每个 frame 都是相对它自己的参考点算出来的，相邻 frame 之间有整体偏差，拼接时要先把偏差统一掉。</p>
+<p class="pa">做法从简到繁：每个 frame 当作一个常数偏差，只用速率绝对值 &lt;1 cm/yr 的同名像元估计<span class="p">P10 p.4</span>；以经水准验证的轨道为基准，用重叠区差值的中位数改正其他轨道<span class="p">P01 p.4</span>；把所有重叠区一起做网络平差（V=BX，伪逆求解）<span class="p">P04 p.5–6；P08 p.4–7</span>；逐 frame 用交叉验证选误差模型，再加 GNSS 约束<span class="p">P09 p.6–8</span>。P08 针对海陆过渡带专门设计了拼接方法<span class="p">P08 p.1</span>。</p>
+<p class="me">做江苏全省一定会遇到这一步。P08 的研究区和你重叠，它的方法最值得精读。</p></div>
+
+<h3 style="margin-top:1.4rem">D. 精度验证</h3>
+
+<div class="k"><h3>D1. 水准、GNSS、分层标<span class="pri">开题必讲</span></h3>
+<p class="pa">P06 取每个水准点 80 m 内最近的相干点，按水准测量的起止日期从时序中截取速率进行比较，527 点的差值标准差为 3.9 mm/yr<span class="p">P06 p.8</span>。P08 用 9 个 GNSS 站，RMS 1.3 mm/yr<span class="p">P08 p.7</span>。P11 用 3 个分层标<span class="p">P11 p.9</span>。笔记指出了两个缺口：P06 的水准只覆盖常州、南通、淮安三市，A、B、C、E 四个重点沉降区所在的市不在其中<span class="p">P06 p.8</span>；P12 没有独立的垂向验证<span class="p">P12 p.5, 25</span>。</p>
+<p class="me">这就是你要向导师要的数据。验证点最好能覆盖你重点讨论的沉降区。</p></div>
+
+<h2>第二章：沉降区是什么地物</h2>
+
+<div class="k"><h3>E1. 怎么划定"沉降区"<span class="pri">开题必讲</span></h3>
+<p class="pa">稳定阈值：±5 mm/yr<span class="p">P06 p.6</span>；±10 mm/yr<span class="p">P05、P08</span>。P08 再挑出 &gt;20 mm/yr 的典型区<span class="p">P08 p.7–8</span>。P12 的条件是 &gt;10 mm/yr 且面积 &gt;4 km²<span class="p">P12 p.3–4</span>。P05 用 Jenks 自然断点分级<span class="p">P05 p.8</span>。</p>
+<p class="me">阈值没有标准答案，要说明理由，通常和你的验证精度挂钩。</p></div>
+
+<div class="k"><h3>E2. 土地覆盖数据叠加统计<span class="pri">第二章核心</span></h3>
+<p class="pa">P09：耕地、建成区、其他地类平均沉降分别为 24.4、19.3、17.8 mm/yr<span class="p">P09 p.12</span>。P10：沉降面积中耕地占 73%、湿地 10%<span class="p">P10 p.6–7</span>。P12：77% 的沉降位于农田<span class="p">P12 p.12</span>。P02：按土地利用和水管理分区统计沉降中位数<span class="p">P02 p.5</span>。所用数据：CLCD 30 m<span class="p">P11 p.4；P08 p.3</span>，Copernicus 100 m<span class="p">P09</span>，ESA WorldCover<span class="p">P07</span>。</p>
+<p class="me">你的第二章基本就是这种做法。要注意 B5 的偏差：农田测点少，"按点统计"和"按面积统计"结论可能不同。</p></div>
+
+<div class="k"><h3>E3. 光学影像判读土地利用变化<span class="pri">第二章核心</span></h3>
+<p class="pa">P06 用多期历史光学影像确定土地何时由农田、鱼塘、滩涂转为工业区或住宅区，转变越晚沉降越快（吴江 P1 为 −41、P2 为 −15 mm/yr）<span class="p">P06 p.14–18</span>。P08 用 Sentinel-2 10 m 影像目视解译加实地调查，并量出变化面积<span class="p">P08 p.3, 9–10</span>。P11 用 Sentinel-2 合成影像辨认农田、盐田、养殖区和石化企业<span class="p">P11 p.4, 10–11</span>。</p>
+<p class="me">土地覆盖产品只告诉你"现在是什么"，多期影像才能告诉你"什么时候变的"，而转变时间对判断成因很关键。</p></div>
+
+<div class="k"><h3>E4. 自动识别与聚类（进阶）</h3>
+<p class="pa">P10 用深度学习网络 DeforNet 识别沉降区，美国测试区准确率约 87%<span class="p">P10 p.4, 14</span>。P07 用 PCA + k-means + DBSCAN + DTW 做时空聚类<span class="p">P07 p.4, 11</span>。P01 用 4 个有物理意义的特征做 K-means，比直接对原始时序聚类的空间连续性更好<span class="p">P01 p.5–9</span>。</p>
+<p class="me">你有编程背景，这部分是你的优势，可以作为加分项，但不是开题必需。</p></div>
+
+<h2>第三章：沉降原因</h2>
+
+<div class="k"><h3>F1. 江苏的三类成因及其时序"指纹"<span class="pri">开题必讲</span></h3>
+<p class="pa">P06 归纳出三类情形<span class="p">P06 p.18–19</span>：</p>
+<ul style="font-size:.95rem;margin:.3rem 0">
+  <li><b>地下采矿</b>（徐州）：速率很大，过程和采矿进度高度吻合，几个月内可达数百到数千毫米，停采后仍可能继续沉降。</li>
+  <li><b>软土固结</b>（连云港填海、吴江鱼塘和农田改建）：符合 Terzaghi 固结理论，先快速下沉、再逐渐变慢。</li>
+  <li><b>地下水开采</b>（丰县城区、如东紫菜养殖）：受开采强度、周期和降雨控制。如东为紫菜清洗抽水，1–9 月下沉、9 月至次年 1 月回升，呈年周期。</li>
+</ul>
+<p class="pa">P08 在鲁苏沿海补充了：盐业和养殖抽取卤水；盐城温室对虾养殖抽地下水，最大年速率 630 mm/yr；港口填海和工业设施荷载<span class="p">P08 p.8–10</span>。</p>
+<p class="me">这一条最重要：<b>不同成因在时间序列曲线上形状不同</b>。这是你第三章的基本推理方法。</p></div>
+
+<div class="k"><h3>F2. 含水层力学：弹性与非弹性</h3>
+<p class="ex">抽水后水压下降，土层被压缩。砂层的压缩大多可以恢复（弹性），水位回升后地面也回弹；黏土层的压缩大多不能恢复（非弹性），地面永久下降。</p>
+<p class="pa">P04 用季节形变振幅除以季节水位振幅得到骨架储水系数 Ske，洪积平原 Ske 主要 &lt;0.01，作者认为以塑性变形为主<span class="p">P04 p.6–7, 11–12</span>。P12 用 ICA 分离出非弹性成分至少占 60%<span class="p">P12 p.1</span>。P02 推断干旱后出现了不可恢复的下降<span class="p">P02 p.8</span>。P01 用指数衰减描述水位回升后沉降的延迟停止，黏土层越厚，衰减越慢<span class="p">P01 p.14</span>。</p></div>
+
+<div class="k"><h3>F3. 水位与形变的滞后</h3>
+<p class="pa">滞后差别很大：不到 2 个月（P01 弹性区）到 4–6 个月（P01 漏斗区）<span class="p">P01 p.13</span>，P04 约 2 天<span class="p">P04 p.10–11</span>。P06 如东的"约一个月滞后"是引用北京平原研究的假设<span class="p">P06 p.16</span>。</p>
+<p class="me">做相关分析时不能直接拿同一天的水位和形变比较，要考虑滞后。</p></div>
+
+<div class="k"><h3>F4. 时间序列分解</h3>
+<p class="ex">PCA 把一堆时序拆成几个互相正交的主要变化模式；ICA 拆成统计上互相独立的"源"，更适合分离不同成因的信号。</p>
+<p class="pa">季节项 + 长期项拟合<span class="p">P01 p.5；P04 p.6</span>；PCA<span class="p">P08 p.7</span>，作者提醒主成分的个数不直接等于驱动因素的个数；PCA 定成分数 + NMF 定方向 + FastICA<span class="p">P11 p.4–6</span>；P08 说明 ICA 的前提在成因复杂的沿海区是否成立尚不清楚，所以没有采用<span class="p">P08 p.15</span>。</p></div>
+
+<div class="k"><h3>F5. 证据链与因果的谨慎<span class="pri">开题必讲</span></h3>
+<p class="pa">常用证据：观测井水位<span class="p">P01、P04、P08、P09、P11</span>，开采量和水资源公报<span class="p">P01、P09、P11</span>，降水<span class="p">P01、P02、P11</span>，野外调查和访谈<span class="p">P06</span>，地质与断层<span class="p">P01、P04、P12</span>。几篇笔记都强调了证据的边界：P10 说明其案例"不确立因果机制"<span class="p">P10 p.10</span>；P07 是事后推断归因<span class="p">P07 p.11–12</span>；P08 没有使用开采量的直接观测<span class="p">P08 p.8–10</span>；P06 的成因是定性推断<span class="p">P06 p.16</span>。</p>
+<p class="me">第三章最容易被答辩老师追问的就是证据够不够。从开题起就要规划"每类成因用什么证据支撑"。</p></div>
+
+<h2>不在你三章范围内的内容</h2>
+<p>相对海平面上升（P03、P07）、人口与建筑暴露风险（P03、P07、P10、P12）、沉降预测（P11 的 CNN-LSTM）。这些了解即可，暂不排课。</p>
+
+<h2>课程大纲（由这张地图推出）</h2>
+<ol class="syllabus">
+  <li class="done">第 1 课：雷达如何量出沉降（相位、条纹、LOS、失相干）</li>
+  <li><a href="../lessons/0002-sentinel1-data.html">Sentinel-1 数据：轨道、frame、升降轨，江苏有哪些数据（A1–A2）</a><span class="pri">开题前</span></li>
+  <li><a href="../lessons/0003-time-series-insar.html">时序 InSAR：SBAS 与 PS、配对网络、解缠与相位闭合（B2–B3）</a><span class="pri">开题前</span></li>
+  <li>误差：大气、DEM、轨道，江苏夏季问题（B1、B4）<span class="pri">开题前</span></li>
+  <li style="list-style:none;margin-left:-1.2rem;padding:.5rem .8rem;border:1px dashed var(--accent);border-radius:6px"><b>★ 框架速览课 + 导师讨论提纲</b>：第二、三章的核心概念只讲到"能讨论"的程度（E1–E3、F1、F5），并列出每章需要和导师一起定下的问题。学完后<b>找导师讨论论文框架</b>，再根据讨论结果调整后面的课程。<span class="pri">第 4 课后</span></li>
+  <li>几何与拼接：LOS→垂向、升降轨、多 frame 拼接（C1–C3）<span class="pri">开题前</span></li>
+  <li>精度验证（D1）<span class="pri">开题前</span></li>
+  <li>软件实操：装环境，用 HyP3 + MintPy 跑通官方示例<span class="pri">开题前</span></li>
+  <li>沉降区划定与土地覆盖叠加统计（E1–E2）<span class="pri">开题前讲概念</span></li>
+  <li>光学影像判读土地利用变化（E3）</li>
+  <li>成因类型与时序指纹（F1）<span class="pri">开题前讲概念</span></li>
+  <li>含水层力学与滞后（F2–F3）</li>
+  <li>时序分解与聚类（F4、E4）</li>
+  <li>证据链与因果表述（F5）</li>
+</ol>
+
+<p style="margin-top:2rem"><a href="thesis-roadmap.html">← 论文技术路线全景</a> · <a href="insar-basics.html">InSAR 基础速查</a> · <a href="../lessons/0001-how-insar-measures-subsidence.html">第 1 课</a></p>
+</main>
+</body>
+</html>

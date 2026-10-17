@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MintPy 处理流程</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .flow { list-style: none; padding: 0; margin: 1.2rem 0; counter-reset: none; }
+  .flow li { position: relative; display: grid; grid-template-columns: 11.5rem 1fr 6.5rem; gap: .8rem; align-items: start;
+             border: 1px solid var(--rule); border-radius: 8px; background: var(--card); padding: .6rem .8rem; margin: 0 0 1.1rem; font-size: .95rem; }
+  .flow li:not(:last-child)::after { content: "↓"; position: absolute; left: 5.2rem; bottom: -1.15rem; color: var(--muted); font-family: var(--sans); }
+  .flow .step { font-family: var(--mono); font-size: .85rem; }
+  .flow .step small { display: block; font-family: var(--sans); color: var(--muted); font-size: .75rem; }
+  .flow .lesson { font-family: var(--sans); font-size: .8rem; text-align: right; color: var(--muted); }
+  .flow li.here { border-left: 4px solid var(--accent); }
+  .flow li.here .lesson { color: var(--accent); font-weight: 700; }
+  .flow li.opt { border-style: dashed; }
+  .flow li.skip { opacity: .55; }
+  .legend { font-family: var(--sans); font-size: .82rem; color: var(--muted); }
+  @media (max-width: 560px) { .flow li { grid-template-columns: 1fr; } .flow .lesson { text-align: left; } .flow li:not(:last-child)::after { left: 1rem; } }
+</style>
+</head>
+<body>
+<main>
+<header class="lesson-head">
+  <div class="kicker">速查卡 · 随课程增补</div>
+  <h1>MintPy 处理流程（smallbaselineApp.py）</h1>
+  <p class="subtitle">依据 MintPy 默认配置文件里的步骤顺序和文档首页的流程说明整理（2026-10-17 读取）。来源：<a href="../lessons/0003-time-series-insar.html">第 3 课</a></p>
+</header>
+
+<p>MintPy 的输入是<strong>已经做好的一堆干涉图</strong>（解缠后的相位、相干性，以及 DEM、入射角等几何文件）。在你的流程里，这些由 HyP3 生成。MintPy 负责从"一堆干涉图"走到"时间序列 + 速率图"，主程序 <code>smallbaselineApp.py</code> 按下面的顺序一步步执行。每一步的参数都在 <code>smallbaselineApp.cfg</code> 里设置<a class="cite" href="#r1">[1]</a>。</p>
+
+<p class="legend">右栏是<strong>【我的对应】</strong>：哪一课讲这一步。红边 = 第 3 课已讲；虚线框 = 可选步骤；灰色 = 与你无关。第 4 课及以后是按课程大纲计划的。</p>
+
+<ol class="flow">
+  <li><div class="step">1. load_data<small>读入数据</small></div><div>读入干涉图、相干性、几何文件，存成 HDF5 数据堆。</div><div class="lesson">第 7 课</div></li>
+  <li class="here"><div class="step">2. modify_network<small>修改网络</small></div><div>剔除不想要的干涉对。可以按日期手动剔除；也可以按相干性剔除（阈值 0.7 + 最小生成树，默认关闭，P08 打开了）。</div><div class="lesson">第 3 课 §2、答疑 2</div></li>
+  <li><div class="step">3. reference_point<small>参考点</small></div><div>把所有干涉图统一到同一个相干性高的像素上（相对于这个点量形变）。</div><div class="lesson">第 5 课（拼接）</div></li>
+  <li><div class="step">quick_overview<small>快速总览</small></div><div>粗看一遍数据质量。</div><div class="lesson">第 7 课</div></li>
+  <li class="here opt"><div class="step">4. correct_unwrap_error<small>解缠错误改正（可选）</small></div><div>用"桥接"或"相位闭合"找出并改正数错圈的解缠错误。P08 两种都用了。</div><div class="lesson">第 3 课 §4</div></li>
+  <li class="here"><div class="step">5. invert_network<small>网络反演</small></div><div>解方程组，从干涉图得到每期的累计形变（时间序列）。默认用加权最小二乘；网络不连通时会警告"结果可能有偏差"。</div><div class="lesson">第 3 课 §3、答疑 1</div></li>
+  <li class="skip"><div class="step">correct_LOD<small>本振漂移改正</small></div><div>只针对 Envisat 卫星，Sentinel-1 用不到。</div><div class="lesson">—</div></li>
+  <li><div class="step">6. correct_SET<small>固体潮改正</small></div><div>改正固体地球潮汐造成的地面起伏。P08 做了固体潮改正。</div><div class="lesson">第 4 课</div></li>
+  <li class="opt"><div class="step">7. correct_ionosphere<small>电离层改正（可选，推荐）</small></div><div>改正电离层延迟。</div><div class="lesson">第 4 课</div></li>
+  <li class="opt"><div class="step">8. correct_troposphere<small>对流层改正（可选，推荐）</small></div><div>改正大气（对流层）延迟，可以用全球大气模型（如 GACOS）或"相位-高程比"方法。江苏夏季问题就在这一步处理（对比 P06 的"剔除夏季"）。</div><div class="lesson">第 4 课</div></li>
+  <li class="opt"><div class="step">9. deramp<small>去趋势面（可选）</small></div><div>去掉整幅图上的线性或二次"斜坡"，常用来消除残余的轨道误差。</div><div class="lesson">第 4 课</div></li>
+  <li class="opt"><div class="step">10. correct_topography<small>DEM 误差改正（可选，推荐）</small></div><div>估计并改正 DEM 不准造成的相位误差。</div><div class="lesson">第 4 课</div></li>
+  <li><div class="step">11.1 residual_RMS<small>残差均方根</small></div><div>评估剩余噪声，可用来挑出噪声特别大的日期。</div><div class="lesson">第 4 课</div></li>
+  <li class="here"><div class="step">11.2 reference_date<small>参考日期</small></div><div>选一期作为时间起点（形变定为 0），就是第 3 课方程组里"第 0 期定为 0"。</div><div class="lesson">第 3 课 §3</div></li>
+  <li class="here"><div class="step">12. velocity<small>速率</small></div><div>对时间序列拟合，斜率就是平均速率。速率图（论文第一章的核心图）就从这里来。</div><div class="lesson">第 3 课 §3</div></li>
+  <li><div class="step">13. geocode / google_earth / hdfeos5 / plot<small>后处理</small></div><div>转成地理坐标、导出 Google Earth 文件、出图（结果放在 pic 文件夹）。</div><div class="lesson">第 7 课</div></li>
+</ol>
+
+<div class="box">
+  <div class="box-title">⚠ 两点说明</div>
+  <ul>
+    <li>MintPy 文档<strong>首页没有流程图</strong>，只有一段文字说明和一张结果示例图。第 3 课原来说"先看文档首页的处理流程图"是我写错了，这张表就是按首页的文字和配置文件整理出来的。</li>
+    <li>每一步的中文说明是我的概括；第 3 课以外的步骤，到对应的课再依据官方文档细讲。</li>
+  </ul>
+</div>
+
+<h2>来源</h2>
+<ol class="sources">
+  <li id="r1"><code>smallbaselineApp.cfg</code>（步骤编号与名称）：<a href="https://github.com/insarlab/MintPy/blob/main/src/mintpy/defaults/smallbaselineApp.cfg">GitHub insarlab/MintPy</a>。</li>
+  <li>MintPy 文档首页 "2.1 Routine workflow smallbaselineApp.py"：<a href="https://mintpy.readthedocs.io/en/latest/">mintpy.readthedocs.io</a>。</li>
+  <li>P08 的做法（相干性 0.7 + 最小生成树、桥接与相位闭合、固体潮、GACOS）：P08 p.3–4。</li>
+</ol>
+
+<nav class="lesson-nav">
+  <a href="../lessons/0003-time-series-insar.html">← 第 3 课：时序 InSAR</a>
+  <a href="insar-basics.html">InSAR 基础速查 →</a>
+</nav>
+</main>
+</body>
+</html>

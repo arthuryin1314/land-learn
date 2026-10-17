@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>江苏 Sentinel-1 数据清单</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .yr td, .yr th { text-align: center; font-family: var(--sans); font-size: .8rem; padding: .3rem .25rem; }
+  .yr td:first-child, .yr th:first-child { text-align: left; white-space: nowrap; }
+  .hi { background: var(--accent-soft); }
+  .lo { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+<header class="lesson-head">
+  <div class="kicker">参考文档 · 数据规划用</div>
+  <h1>江苏上空有哪些 Sentinel-1 数据</h1>
+  <p class="subtitle">2026-10-16 查询 ASF 数据库的实际结果。来源：<a href="../lessons/0002-sentinel1-data.html">第 2 课</a></p>
+</header>
+
+<div class="box goal">
+  <div class="box-title">查询条件</div>
+  <p style="font-size:.9rem">ASF Search API；Sentinel-1，IW 模式，SLC 产品；范围是经度 116.4–121.9°E、纬度 30.8–35.1°N 的矩形（把江苏框进去，<b>也包括了安徽、山东、上海的一部分</b>）；时间 2014-10 至 2026-10（查询当天）。共 6037 景。原始结果：<code>data/asf_s1_slc_jiangsu_bbox_queried_2026-10-16.csv</code>。</p>
+</div>
+
+<h2>各轨道覆盖范围（从西到东）</h2>
+<p>江苏大致在 116.3°E 到 121.9°E 之间。下表的经度范围取自各景影像的角点坐标。</p>
+<div class="table-wrap"><table>
+<tr><th>方向</th><th>轨道（path）</th><th>经度范围</th><th>覆盖江苏的哪部分</th></tr>
+<tr><td>升轨</td><td>40</td><td>113.4–117.3°E</td><td>只擦到最西边（徐州西部）</td></tr>
+<tr class="hi"><td>升轨</td><td><b>142</b></td><td>115.0–119.4°E</td><td>西部</td></tr>
+<tr class="hi"><td>升轨</td><td><b>69</b></td><td>117.1–121.4°E</td><td>中部</td></tr>
+<tr class="hi"><td>升轨</td><td><b>171</b></td><td>119.0–123.6°E</td><td>东部及沿海</td></tr>
+<tr><td>升轨</td><td>98</td><td>121.1–124.9°E</td><td>只到最东端沿海和海上</td></tr>
+<tr><td>降轨</td><td><b>76</b></td><td>116.4–120.8°E</td><td>西部和中部，<b>不到东部沿海</b></td></tr>
+<tr><td>降轨</td><td>3</td><td>118.5–122.9°E</td><td>中东部（数据很少）</td></tr>
+</table></div>
+<p class="lo" style="font-size:.85rem">另有升轨 42，降轨 105、149，各只有零星几景，不列入。ASF 元数据里还有 5 景"升轨 76"（1B，2019-02-04），但它们的过境时间是 22:05 UTC（北京时间早上 6 点），帧号也和降轨 76 相同，实际应是降轨，只是元数据标错了（2026-10-17 核对）。</p>
+<p>升轨 142 + 69 + 171 三条轨道就能盖住整个江苏，和 P06 用的轨道完全一致（P06 p.2–3）。</p>
+
+<h2>每年有多少期（每条轨道每年的不同拍摄日期数）</h2>
+<div class="table-wrap"><table class="yr">
+<tr><th>轨道</th><th>15</th><th>16</th><th>17</th><th>18</th><th>19</th><th>20</th><th>21</th><th>22</th><th>23</th><th>24</th><th>25</th><th>26*</th></tr>
+<tr><td>升 142</td><td>14</td><td>25</td><td>27</td><td>29</td><td>29</td><td>31</td><td>29</td><td>30</td><td>31</td><td>30</td><td>33</td><td>23</td></tr>
+<tr><td>升 69</td><td>9</td><td>18</td><td>30</td><td>30</td><td class="hi">55</td><td class="hi">60</td><td class="hi">55</td><td>27</td><td>28</td><td>30</td><td>28</td><td>23</td></tr>
+<tr><td>升 171</td><td>12</td><td>21</td><td>27</td><td>30</td><td class="hi">53</td><td class="hi">55</td><td class="hi">55</td><td>30</td><td>31</td><td>30</td><td>31</td><td>21</td></tr>
+<tr><td>降 76</td><td>2</td><td>10</td><td>28</td><td>25</td><td>25</td><td>29</td><td>25</td><td class="lo">0</td><td class="lo">0</td><td class="lo">0</td><td>1</td><td>11</td></tr>
+<tr><td>降 3</td><td>2</td><td>7</td><td class="lo">0</td><td class="lo">0</td><td class="lo">0</td><td>1</td><td>1</td><td class="lo">0</td><td class="lo">0</td><td class="lo">0</td><td>12</td><td>12</td></tr>
+</table></div>
+<p class="lo" style="font-size:.85rem">* 2026 年只统计到查询当天（10 月 16 日）。</p>
+
+<h2>从表里读出的五件事</h2>
+<ol>
+  <li><b>升轨一直稳定</b>：三条主轨道每年约 30 期，即约每 12 天一期。</li>
+  <li><b>2019–2021 年升轨 69、171 加密到每年约 55 期</b>：这几年 Sentinel-1A 和 1B 都在这两条轨道上拍，约 6 天一期。</li>
+  <li><b>降轨 76 几乎全是 Sentinel-1B 拍的</b>：2016–2021 年的降轨影像来自 1B；1A 在这条降轨上只有 2015、2016 年的各 4 景。1B 于 2021-12-23 故障后，<b>2022–2024 年江苏没有降轨数据</b>。这与 P08 的说法一致："1B 结束任务，1A 几乎没有提供降轨数据"（P08 p.2）。</li>
+  <li><b>升降轨同期都有数据的窗口：2017–2021 年</b>，而且降轨 76 只覆盖江苏中西部。</li>
+  <li><b>2025 年起出现新卫星</b>：Sentinel-1C（2024-12-05 发射）和 Sentinel-1D 的影像开始入库，降轨 76、3 在 2025–2026 年又有了数据。</li>
+</ol>
+
+<h2>怎么自己重新查</h2>
+<pre><code># ASF Search API（每次最多返回 2000 条，所以按半年分段查询）
+https://api.daac.asf.alaska.edu/services/search/param?
+  platform=Sentinel-1&amp;processingLevel=SLC&amp;beamMode=IW
+  &amp;intersectsWith=POLYGON((116.4 30.8,121.9 30.8,121.9 35.1,116.4 35.1,116.4 30.8))
+  &amp;start=2017-01-01T00:00:00Z&amp;end=2017-07-01T00:00:00Z
+  &amp;maxResults=2000&amp;output=csv</code></pre>
+<p>也可以在网页版 <a href="https://search.asf.alaska.edu/">ASF Vertex</a> 里画框查询。CSV 里关键的列是 <code>Path Number</code>、<code>Frame Number</code>、<code>Ascending or Descending?</code>、<code>Platform</code>、<code>Acquisition Date</code>。</p>
+
+<p style="margin-top:2rem"><a href="../lessons/0002-sentinel1-data.html">← 第 2 课</a> · <a href="paper-knowledge-map.html">文献知识地图</a></p>
+</main>
+</body>
+</html>

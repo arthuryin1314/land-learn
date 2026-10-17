@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InSAR 基础速查</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<main>
+<header class="lesson-head">
+  <div class="kicker">速查卡 · 随课程增补</div>
+  <h1>InSAR 基础速查</h1>
+  <p class="subtitle">来源：<a href="../lessons/0001-how-insar-measures-subsidence.html">第 1 课</a></p>
+</header>
+
+<h2>核心公式</h2>
+<div class="table-wrap"><table>
+<tr><th>量</th><th>公式 / 数值</th><th>备注</th></tr>
+<tr><td>干涉相位</td><td><code>Δφ = 4π·ΔR / λ</code></td><td>4π 是因为信号往返</td></tr>
+<tr><td>Sentinel-1 波长</td><td>λ ≈ 5.55 cm（C 波段）</td><td>IW 模式入射角 29°–46°</td></tr>
+<tr><td>一个条纹</td><td>λ/2 ≈ <strong>2.8 cm</strong> 视线向</td><td>USGS 图件的标准换算</td></tr>
+<tr><td>视线向 → 垂直</td><td><code>d_v = d_LOS / cos θ</code></td><td>假设无水平运动；结果的绝对值大于视线向</td></tr>
+</table></div>
+
+<h2>代码检查清单</h2>
+<pre><code>vert = los / np.cos(np.deg2rad(inc_deg))   # 除以 cos；角度先转弧度
+# 正负号：每个软件的约定不同，先查文档
+# 江苏 2021 论文：负值 = 沉降</code></pre>
+
+<h2>InSAR 测不准 / 测不到的地方</h2>
+<ul>
+  <li><strong>失相干</strong>：农田、水体、植被茂密区散射体变化 → 没有可靠的相干点</li>
+  <li><strong>形变过快</strong>：相邻像元间相位跳变超过半周 → 解缠出错，量级被低估（如徐州采矿区）</li>
+  <li><strong>单一视角</strong>：只能得到视线向分量，换算垂直方向要靠假设</li>
+  <li><strong>点的比例 ≠ 面积比例</strong>：相干点在城市密、在农田稀</li>
+</ul>
+</main>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 1 课 · InSAR 如何量出沉降</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<main>
+
+<header class="lesson-head">
+  <div class="kicker">第 1 课 · 论文第一章的地基</div>
+  <h1>雷达怎么从 700 公里外量出几毫米的沉降</h1>
+  <p class="subtitle">15 分钟。读完后你能看懂一张干涉图，并且能挑出 AI 代码里最常见的一处几何错误。</p>
+</header>
+
+<div class="box goal">
+  <div class="box-title">本课目标</div>
+  <p>你导师给的江苏论文，核心产出是一张图：<strong>全省每个点的平均沉降速率（mm/年）</strong>。论文写道，验证精度为 3.9 mm/年，最大沉降 215 mm/年，位于连云港港区一条新建码头道路<a class="cite" href="#s1">[1]</a>。</p>
+  <p>本课只回答一个问题：<strong>卫星在 700 多公里高的轨道上，凭什么能量出毫米级的高程变化？</strong>弄懂这一点，你的论文第一章就有了地基。</p>
+</div>
+
+<h2>1. 雷达测的是"距离"，而相位是距离取模</h2>
+
+<p>Sentinel-1 是一颗主动雷达卫星：它自己发射微波，再接收地面反射回来的信号。回波里有两个量<a class="cite" href="#s2">[2]</a>：</p>
+<ul>
+  <li><strong>振幅</strong> <em class="en">amplitude</em>：反射回来的信号有多强，SAR 的灰度图就是用它画的；</li>
+  <li><strong>相位</strong> <em class="en">phase</em>：回波处在波形周期的哪个位置。它记录的是卫星到地面的距离，InSAR 只用这个量。</li>
+</ul>
+
+<p>换成你熟悉的说法：相位就是<strong>往返路程对波长取模</strong>。</p>
+
+<pre><code># 伪代码：一次观测记录的相位
+round_trip = 2 * R                 # 信号去程 + 回程
+phase = (round_trip % λ) / λ * 2π  # 只保留"余数"，整周数丢失</code></pre>
+
+<p>单看一次观测，余数没有意义，因为不知道前面有多少个整周。<strong>但同一个地点在两个日期各拍一次，两次的相位相减，就得到这段时间里距离变了多少。</strong>这一步叫<strong>干涉</strong> <em class="en">interferometry</em>，"InSAR"里的 In 就是它。</p>
+
+<div class="formula">Δφ = (4π / λ) · ΔR</div>
+
+<p>公式里是 4π，不是 2π，原因是信号要走一个来回：地面下沉 1 cm，往返路程就多出 2 cm。Sentinel-1 的 C 波段波长 λ ≈ 5.55 cm<a class="cite" href="#s3">[3]</a>，所以：</p>
+
+<div class="formula">一个完整条纹（相位转一圈 2π）= λ/2 ≈ 2.8 cm 视线向距离变化</div>
+
+<p>USGS 发布的每张 Sentinel-1 干涉图都写着同样的换算："每个色彩循环代表 2.8 cm 的地面运动"<a class="cite" href="#s4">[4]</a>。毫米级精度的来源就在这里：雷达分辨的是<strong>一个周期内的相位</strong>，2.8 cm 的百分之几就是毫米。</p>
+
+
+<div class="sim" id="anim">
+  <div class="box-title" style="font-family:var(--sans)">▶ 动画：相位指针怎么转</div>
+  <canvas width="720" height="390"></canvas>
+  <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.6rem;font-family:var(--sans);font-size:.88rem">
+    <button class="prev opt-btn">◀ 上一步</button>
+    <button class="play opt-btn">▶ 播放</button>
+    <button class="next opt-btn">下一步 ▶</button>
+    <span class="step-label" style="color:var(--muted);margin-left:.4rem"></span>
+  </div>
+  <p class="caption" style="min-height:5.5em;margin:.6rem 0 .2rem;font-size:.95rem"></p>
+  <div class="controls"><label>地面下沉</label><input name="sink" type="range" min="0" max="8" step="0.05" value="0"><span class="sink-val"></span></div>
+  <aside class="note" style="margin-bottom:0">画面比例：为了看得清，波被画得很长。但"地面每沉 2.8 cm、指针转一圈"这个关系和真实情况一致。</aside>
+</div>
+
+<h2>2. 动手：做一个沉降漏斗</h2>
+
+<p><strong>沉降漏斗</strong>指地面中间沉得最多、往外越来越少的一块区域，从侧面切开看像一个漏斗或一口碗。最常见的成因是集中抽取地下水：井周围的地下水位先降出一个"水位漏斗"，地面随之下沉。你的文献里随处可见这个词，例如华北平原 1971–2015 年沉降漏斗面积超过 48,500 km²（P04 p.2–3），江苏丰县城区的沉降和水井分布在空间上对应（P06 p.9）。</p>
+<p>下面模拟一个这样的圆形沉降漏斗。<strong>两张图这样看：</strong></p>
+<ul>
+  <li><strong>上图是从卫星往下俯视。</strong>彩色圆环相当于地图上的等高线，同一种颜色的点沉得一样多。从边缘往中心走，零头从 0 涨到接近 1 又跳回 0，每多一个完整色环，视线向就多变约 2.8 cm。</li>
+  <li><strong>下图是沿着虚线把坑切开、从侧面看。</strong>红线是坑的真实形状，黑线是卫星读到的零头（锯齿）。</li>
+</ul>
+
+<div class="sim" id="sim1">
+  <canvas class="map" width="360" height="240"></canvas>
+  <canvas class="profile" width="720" height="150" style="margin-top:.6rem"></canvas>
+  <div class="controls">
+    <label for="d">中心沉降量</label><input id="d" name="depth" type="range" min="0" max="15" step="0.1" value="5.6"><span class="depth-val"></span>
+    <label for="i">入射角 θ</label><input id="i" name="inc" type="range" min="29" max="46" step="1" value="39"><span class="inc-val"></span>
+  </div>
+  <div class="readout"></div>
+</div>
+
+<p>建议按顺序试三件事：</p>
+<ol>
+  <li>把沉降量调到 0，再慢慢加大。<strong>条纹是从中心"长"出来的</strong>，每多出一圈颜色，视线向距离就多变化 2.8 cm。</li>
+  <li>看下方剖面：红线是真实形变，平滑连续；黑线是干涉图实际给你的东西，是一段段锯齿，每升到 2.8 cm 就跳回 0。<strong>把锯齿拼回平滑曲线的过程叫"相位解缠"</strong> <em class="en">phase unwrapping</em>，类似处理整数溢出：你得猜出它溢出了几次。</li>
+  <li>沉降量不变，只拖入射角。条纹数变了，因为卫星是<strong>斜着看</strong>地面的。</li>
+</ol>
+
+<h2>3. 卫星是斜着看的：视线向和垂直方向</h2>
+
+<p>InSAR 量到的只是<strong>沿卫星视线方向</strong> <em class="en">line of sight, LOS</em> 的距离变化，并不是地面的垂直升降。Sentinel-1 IW 模式的入射角大约在 29° 到 46° 之间<a class="cite" href="#s3">[3]</a>。</p>
+
+<p><strong>入射角 θ 是哪个角？</strong>在地面那一点竖一根铅垂线（竖直向上），雷达视线和这根铅垂线之间的夹角就是入射角。θ 越小，卫星越接近"正上方往下看"；θ 越大，看得越斜。同一景影像里，靠近卫星轨道的一侧（近距端）入射角小，远的一侧（远距端）入射角大，Sentinel-1 IW 模式大约从 29° 到 46°。</p>
+
+<div class="sim" id="tri">
+  <div class="box-title" style="font-family:var(--sans)">▶ 拖一拖：垂直沉降怎么变成视线向</div>
+  <svg class="lt-svg" viewBox="40 0 600 370"></svg>
+  <div class="controls">
+    <label>入射角 θ</label><input name="theta" type="range" min="20" max="50" step="1" value="39"><span class="theta-val"></span>
+    <label>垂直沉降 d</label><input name="d" type="range" min="0" max="12" step="0.1" value="10"><span class="d-val"></span>
+  </div>
+  <div class="readout"></div>
+  <aside class="note" style="margin-bottom:0">画法说明：沉降量被大大放大了。这个三角形的斜边是<b>红色</b>的真实垂直沉降 d；把它投影到视线上，得到<b>蓝色</b>那一段，就是卫星量到的视线向形变；剩下的<b>灰色</b>那段垂直于视线，雷达完全测不到。θ 同时出现在两个地方：上方是铅垂线和视线的夹角，下方是红线和蓝线的夹角，两者是同一个角。</aside>
+</div>
+
+<p>如果<strong>假设地面只上下动、不水平移动</strong>，垂直沉降和视线向变化的关系是：</p>
+
+<div class="formula">视线向形变 = 垂直形变 × cos θ　⟺　垂直形变 = 视线向形变 / cos θ</div>
+
+<p>江苏论文的公式 (4) 就是这样做的：<code>v<sub>u-d</sub> = v<sub>LOS</sub> / cos θ</code>，把不同轨道的结果投影到同一个垂直方向，再拼接全省<a class="cite" href="#s1">[1]</a>。cos θ 小于 1，所以<strong>换算出的垂直沉降总比视线向数值大</strong>。</p>
+
+<aside class="note">"只有垂直运动"是一个假设，不是事实。地裂缝、采矿边缘、滑坡区都可能有明显的水平运动。要严格分解垂直和水平分量，需要升轨和降轨两个视角。江苏论文只用了升轨，它的局限部分也提到了这一点。</aside>
+
+<h2>4. InSAR 的盲区：失相干</h2>
+
+<p>两次观测的相位能相减，前提是<strong>地面在两次之间"还是同一个东西"</strong>。楼房、道路、裸岩的散射结构几个月都不变，相位稳定。农田则不同：今天是麦苗，下个月翻耕，再过一个月灌水，散射体彻底变了，两次相位之间没有关系可言。这叫<strong>失相干</strong> <em class="en">decorrelation</em>。</p>
+
+<p>你导师给的江苏论文里正好有一个例子。徐州的地下采煤区是"以农田和零散村庄为主的乡村地貌"，论文结论是：该区形变信息<strong>"因缺少相干点而在空间上缺失，又因采矿作业时间不均匀而在量级上被低估"</strong><a class="cite" href="#s1">[1]</a>。</p>
+
+<p>这和你论文的第二章直接相关：<strong>InSAR 结果在"楼房"区域很密，在"农田"区域很稀疏。</strong>统计"不同地物的沉降情况"时，地物类型本身就会影响你能拿到多少测量点，这是一个必须讨论的偏差。</p>
+
+<div class="box trap">
+  <div class="box-title">⚠ AI 可能坑你的地方</div>
+  <ul>
+    <li><strong>cos θ 乘除写反。</strong>AI 写出 <code>vert = los * np.cos(inc)</code> 的情况很常见。按上面的推导，把视线向换成垂直方向要<strong>除以</strong> cos θ。</li>
+    <li><strong>角度单位。</strong><code>np.cos</code> 的参数是弧度。入射角文件通常以"度"存储，<code>np.cos(39)</code> 不会报错，算出来的数却完全不对。要写成 <code>np.cos(np.deg2rad(inc))</code>。</li>
+    <li><strong>正负号约定。</strong>江苏论文用负值表示沉降（如 −215 mm/年）。各个软件对正负号"靠近卫星还是远离卫星"的约定不一定相同，每用一个新工具都要先查它的文档。</li>
+    <li><strong>读论文的坑。</strong>精读报告写的是"约 82% 区域稳定"，原文结果节说的是 82% 的<strong>相干点</strong>速率在 ±5 mm/年以内<a class="cite" href="#s1">[1]</a>。相干点在城市密、农田稀，所以"点的比例"不等于"面积的比例"。</li>
+  </ul>
+</div>
+
+<h2>5. 检验：不翻上文，直接回答</h2>
+<p class="quiz-score" id="quiz-score"></p>
+
+<div class="quiz" data-answer="2">
+  <p class="q">Q1. 在一张 Sentinel-1 干涉图上，从漏斗边缘数到中心，有 3 个完整的色彩循环。视线向距离变化了大约多少？</p>
+  <div class="opts">
+    <button class="opt">约 2.8 厘米</button>
+    <button class="opt">约 5.6 厘米</button>
+    <button class="opt">约 8.4 厘米</button>
+    <button class="opt">约 1.4 厘米</button>
+  </div>
+  <div class="fb" data-right="一个条纹 = λ/2 ≈ 2.8 cm，3 个条纹 ≈ 8.4 cm。注意这是视线向，换成垂直方向还要除以 cos θ。" data-wrong="一个完整条纹对应多少厘米？然后乘以条纹数。"></div>
+</div>
+
+<div class="quiz" data-answer="3">
+  <p class="q">Q2. 为什么一个条纹对应的是半个波长，而不是一个波长？</p>
+  <div class="opts">
+    <button class="opt">卫星每次飞过时高度会降低一半</button>
+    <button class="opt">软件为了显示美观做了压缩处理</button>
+    <button class="opt">雷达只记录了波形的上半部分值</button>
+    <button class="opt">信号要往返两趟，路程变化翻倍</button>
+  </div>
+  <div class="fb" data-right="地面下沉 1 cm，信号去程和回程各多走 1 cm，往返路程多 2 cm。所以公式里是 4π/λ。" data-wrong="想想信号走的路线：从卫星到地面，然后呢？"></div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <p class="q">Q3. 江苏论文说徐州采煤区的形变"在空间上缺失"。最主要的原因是？</p>
+  <div class="opts">
+    <button class="opt">农田随季节变化，相位前后不相干</button>
+    <button class="opt">采矿区地下太深，雷达波照射不到</button>
+    <button class="opt">当地沉降速度太慢，低于仪器精度</button>
+    <button class="opt">卫星轨道不过徐州，影像数据缺失</button>
+  </div>
+  <div class="fb" data-right="农田失相干，所以相干点很少。另外，采矿沉降量大、变化快，一次观测间隔内可能超出可解缠的范围，所以论文还说量级被低估了。" data-wrong="InSAR 只量地表，不需要照到地下。回想第 4 节：哪种地物的相位最不稳定？"></div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">Q4. 某点视线向速率为 −10 mm/年，入射角 40°（cos 40° ≈ 0.766），假设只有垂直运动。它的垂直沉降速率约为？</p>
+  <div class="opts">
+    <button class="opt">约 7.66 mm/年 下沉</button>
+    <button class="opt">约 13.1 mm/年 下沉</button>
+    <button class="opt">约 10.0 mm/年 下沉</button>
+    <button class="opt">约 15.6 mm/年 下沉</button>
+  </div>
+  <div class="fb" data-right="10 / 0.766 ≈ 13.1。垂直沉降一定比视线向数值大，用这一点就能快速检查 AI 的代码。" data-wrong="是乘 cos θ 还是除以 cos θ？换算后的数应该变大还是变小？"></div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <p class="q">Q5. AI 给你写了 <code>vert = los * np.cos(inc)</code>，其中 <code>inc</code> 是以"度"为单位的入射角数组。这行有几处错误？</p>
+  <div class="opts">
+    <button class="opt">零处，代码完全正确</button>
+    <button class="opt">一处，只是单位有错</button>
+    <button class="opt">两处，乘除和单位错</button>
+    <button class="opt">三处，连符号也写错</button>
+  </div>
+  <div class="fb" data-right="应写成 vert = los / np.cos(np.deg2rad(inc))。符号要看所用软件的约定，这行代码本身不能判定它错。" data-wrong="检查两件事：乘还是除？np.cos 要的是度还是弧度？"></div>
+</div>
+
+<details class="recall">
+  <summary>✍ 自由回忆（最能加深记忆的一步，别跳过）</summary>
+  <p>假设导师在组会上问你："InSAR 凭什么能测到毫米级？它有什么测不到的？"用 3 到 4 句话写下你的回答，<strong>写完再展开参考答案</strong>。</p>
+  <textarea class="recall-input" placeholder="在这里写……"></textarea>
+  <details>
+    <summary>参考答案</summary>
+    <p>InSAR 利用雷达回波的相位。相位相当于往返距离对波长取模，同一地点两次观测的相位差反映了这段时间视线向距离的变化。Sentinel-1 波长约 5.5 cm，相位转一整圈对应 2.8 cm，能分辨一圈中的一小部分，所以精度可达毫米级。它测不到的有三类：地表散射性质变了的区域（农田、水体）会失相干；形变太快导致相位无法解缠；它只量视线方向，换算成垂直方向需要假设没有水平运动。</p>
+  </details>
+</details>
+
+<div class="box ask">
+  <div class="box-title">有疑问就问我</div>
+  <p>哪里没看懂，或者想在你的论文里找到对应的地方，直接回到终端问。比如："干涉图里的颜色怎么知道是沉降还是抬升？"或者"大气会不会也让相位变化？"（会，下一课讲）。我是你的老师，什么问题都可以问。</p>
+</div>
+
+<h2>主推资料</h2>
+<p><strong><a href="https://www.earthdata.nasa.gov/learn/trainings/introduction-synthetic-aperture-radar">NASA ARSET：Introduction to Synthetic Aperture Radar</a></strong>，看第 4 节 <em>Introduction to SAR Interferometry</em>（约 1 小时，有幻灯片）<a class="cite" href="#s5">[5]</a>。这是 NASA 官方培训，面向零基础的用户。看完这节，你今天学的内容会再从另一个角度过一遍，这样的间隔重复对记忆很有帮助。</p>
+
+<p>速查：<a href="../reference/insar-basics.html">InSAR 基础速查卡</a> · <a href="../reference/thesis-roadmap.html">论文技术路线全景图</a></p>
+
+<div class="box homework">
+  <div class="box-title">📖 阅读作业：回到原文检验自己</div>
+  <p>打开 <code>paper/地表沉降论文</code> 里 P06（江苏全省）和 P08（鲁苏沿海）的 PDF，读下面标出的页。<strong>先在原文里找答案，自己写下来，再展开核对。</strong>遇到看不懂的词，记下来问我。</p>
+  <ol>
+    <li>P06 公式 (4) 把视线向速率换成垂向速率，用的是乘还是除 cos θ？作者说这个公式只在什么前提下成立？凭什么认为江苏满足这个前提？
+      <div class="where">P06 第 6 页，"For deformation monitoring over a large area…"那一段</div>
+      <details><summary>核对答案</summary>除以 cos θ。作者写道，这个转换只在"地面的抬升或沉降是唯一形变"的假设下成立。依据是引用的文献称江苏的地面形变以沉降和抬升为主（原文引文 [26]）。</details></li>
+    <li>P06 图 4 和 P08 图 4 里，负值代表什么？
+      <div class="where">P06 第 7 页图 4 图注；P08 第 6 页图 4 图注</div>
+      <details><summary>核对答案</summary>两篇都是负值表示沉降。P06 图注写"negative and positive velocities refer to ground subsidence and uplift respectively"，P08 图注写"The minus sign represents subsidence"。</details></li>
+    <li>徐州采煤区为什么几乎提不出相干点？仅有的相干点落在什么东西上？作者找到了什么补救办法？
+      <div class="where">P06 第 13 页，"The frequent land-cover changes on farmland…"那一段</div>
+      <details><summary>核对答案</summary>农田地表覆盖变化频繁；相干点只出现在电线杆、建筑等人工目标上。补救办法：10 月到次年 3 月地表裸露或小麦刚出苗，这段时间内间隔 12 天或 24 天的干涉图相干性好，可以可靠解缠，再用最小二乘求出各期形变。</details></li>
+    <li>看 P06 图 9 的 15 幅连续 12 天干涉图。条纹在移动，作者从中读出了什么？结合第 1 课想一想：一圈完整条纹大约代表多少视线向形变？
+      <div class="where">P06 第 13–14 页，图 9 及其前一段</div>
+      <details><summary>核对答案</summary>作者写道，从移动的形变条纹可以看出地下开采沿煤层走向自西向东推进。一圈完整条纹约代表 2.8 cm 视线向形变（这是第 1 课的知识，不是 P06 原文给的）。</details></li>
+    <li>P08 公式 (5) 把三维形变投影到视线向。为什么只有升轨数据解不出三维形变？作者凭什么说可以只算垂向？
+      <div class="where">P08 第 6 页，"(1) The projection of a three-dimensional displacement vector…"那一段</div>
+      <details><summary>核对答案</summary>只有升轨时，一个观测量对应垂直、北、东三个未知数，所以还需要降轨观测；但降轨数据有限，只有部分区域被升降轨同时覆盖。在这些区域里，用升降轨算出的水平形变（补充材料图 S4）不显著，也与前人的 GNSS 和 InSAR 研究一致。于是作者用 dv = dLOS / cos θ 把升轨视线向形变转成垂向。</details></li>
+  </ol>
+  <p style="font-size:.9rem">5 题都能在原文里自己找到答案，说明这一课学扎实了。哪题找不到或看不懂原文，正好说明下一步该问我什么。</p>
+</div>
+
+<h2>来源</h2>
+<ol class="sources">
+  <li id="s1">江苏全省沉降论文：<em>Investigating Ground Subsidence and the Causes over the Whole Jiangsu Province, China Using Sentinel-1 SAR Data</em>, Remote Sensing 13, 179 (2021)。本地文件：paper/地表沉降论文。引用内容取自 PDF 原文第 3.1 节、公式 (4) 和徐州采矿区讨论。</li>
+  <li id="s2"><a href="https://www.earthdata.nasa.gov/learn/earth-observation-data-basics/sar">NASA Earthdata — What is SAR</a></li>
+  <li id="s3"><a href="https://en.wikipedia.org/wiki/Sentinel-1">Sentinel-1 概况</a>；<a href="https://earth.esa.int/eogateway/documents/20142/37627/PolSAR-2013-Sentinel-1-System-Data.pdf">ESA Sentinel-1 System Data</a>（IW 模式入射角 29.1°–46°）</li>
+  <li id="s4"><a href="https://www.usgs.gov/media/images/august-7-2024-insar-image-kilauea-ground-deformation">USGS — Kīlauea InSAR 图像说明（每个色彩循环 = 2.8 cm）</a></li>
+  <li id="s5"><a href="https://www.earthdata.nasa.gov/learn/trainings/introduction-synthetic-aperture-radar">NASA ARSET — Introduction to SAR</a>；进阶阅读：<a href="https://www.esa.int/About_Us/ESA_Publications/InSAR_Principles_Guidelines_for_SAR_Interferometry_Processing_and_Interpretation_br_ESA_TM-19">ESA TM-19 InSAR Principles</a>，Part B 面向初学者。</li>
+</ol>
+
+<nav class="lesson-nav">
+  <span class="disabled">← 无上一课</span>
+  <a href="0002-sentinel1-data.html">下一课：Sentinel-1 数据 →</a>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/fringe-sim.js"></script>
+<script src="../assets/phase-anim.js?v=2"></script>
+<script src="../assets/los-triangle.js?v=1"></script>
+<script>FringeSim.mount(document.getElementById('sim1'), { lambda: 5.55 });
+PhaseAnim.mount(document.getElementById('anim'));
+LosTriangle.mount(document.getElementById('tri'));</script>
+</body>
+</html>

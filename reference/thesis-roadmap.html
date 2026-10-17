@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>论文技术路线全景</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .flow { display: grid; gap: .8rem; margin: 1.5rem 0; }
+  .step { border: 1px solid var(--rule); border-left: 4px solid var(--accent); border-radius: 6px; padding: .8rem 1rem; background: var(--card); }
+  .step h3 { margin: 0 0 .3rem; }
+  .step p { margin: .2rem 0; font-size: .93rem; }
+  .tag { display: inline-block; font-family: var(--sans); font-size: .75rem; padding: .05rem .5rem; border-radius: 99px; background: var(--accent-soft); color: var(--accent); margin-right: .3rem; }
+  .tag.todo { background: var(--code-bg); color: var(--muted); }
+  .arrow { text-align: center; color: var(--muted); line-height: 1; }
+</style>
+</head>
+<body>
+<main>
+<header class="lesson-head">
+  <div class="kicker">全景图 · 每学完一课就点亮一块</div>
+  <h1>论文技术路线全景</h1>
+  <p class="subtitle">你的三章是怎么串起来的。和 AI 讨论方案前先看这张图，确认它说的是哪一步。</p>
+</header>
+
+<p>这条路线参照了你文献里最接近的两篇：江苏全省 Sentinel-1（2021），以及中国东部海岸 Sentinel-1 + Sentinel-2（2026）。后者的结构几乎就是你的三章：先做沉降制图，再识别地表变化，最后做驱动归因。</p>
+
+<div class="flow">
+  <div class="step">
+    <h3>① 数据获取</h3>
+    <p>Sentinel-1 SAR 影像（免费），覆盖江苏需要多个 frame、多条轨道。</p>
+    <p><span class="tag todo">待学</span>轨道 / frame、升轨与降轨、ASF Vertex 检索</p>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="step">
+    <h3>② 干涉处理 → 干涉图堆栈</h3>
+    <p>配准、生成干涉图、去地形、滤波、相位解缠。开源方案：ASF HyP3 云端生成（每月 8000 免费额度）。</p>
+    <p><span class="tag">第 1 课</span>相位、条纹、解缠的概念　<span class="tag todo">待学</span>HyP3 实操</p>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="step">
+    <h3>③ 时序分析 → 速率图 + 时间序列</h3>
+    <p>SBAS / PS 方法，从很多张干涉图解出每个点的平均速率（mm/年）和逐期形变。开源工具：MintPy 或 LiCSBAS。包括大气改正、视线向转垂直、多轨拼接。</p>
+    <p><span class="tag">第 1 课</span>视线向 → 垂直　<span class="tag todo">待学</span>SBAS 与 PS 的区别、大气误差、MintPy</p>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="step">
+    <h3>④ 精度验证</h3>
+    <p>与水准、GNSS 对比（江苏论文：527 个水准点，精度 3.9 mm/年）。</p>
+    <p><span class="tag todo">待学</span>验证方法、数据向导师要</p>
+  </div>
+  <div class="arrow">↓ 第一章完成</div>
+  <div class="step">
+    <h3>⑤ 沉降区 × 地物类型（第二章）</h3>
+    <p>速率图与土地覆盖数据（如 CLCD 30 m 年度数据）叠加，统计每种地物的沉降分布。注意：农田失相干会让点数偏少。</p>
+    <p><span class="tag">第 1 课</span>失相干偏差　<span class="tag todo">待学</span>栅格叠加分析、Sentinel-2 识别地表变化</p>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="step">
+    <h3>⑥ 成因分析（第三章）</h3>
+    <p>常见成因：地下水超采（含水层压密）、地下采矿、软土固结与围垦填海、建筑荷载。证据包括时序形态、空间分布、地下水位、土地利用变化。</p>
+    <p><span class="tag todo">待学</span>沉降物理机制（USGS Circular 1182）、时序分解、聚类</p>
+  </div>
+</div>
+
+<p>每一步在文献里是怎么做的，见 <a href="paper-knowledge-map.html">文献知识地图</a>。</p>
+<aside class="note">图里"待学"的标签会随着课程推进变成课程编号。哪一步你现在就想先搞懂，直接告诉我。</aside>
+</main>
+</body>
+</html>

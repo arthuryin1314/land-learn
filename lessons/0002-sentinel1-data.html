@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 2 课 · Sentinel-1 数据</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .geo-svg { width: 100%; height: auto; display: block; font-family: var(--sans); font-size: 13px; }
+  .geo-svg .t { fill: var(--fg); } .geo-svg .m { fill: var(--muted); }
+  .geo-svg .asc { stroke: #3a6ea5; fill: #3a6ea5; } .geo-svg .des { stroke: #2f6b3a; fill: #2f6b3a; }
+  .geo-svg .land { fill: #8a6a48; opacity: .15; stroke: #8a6a48; }
+  .geo-svg .bar-asc { fill: #3a6ea5; opacity: .75; } .geo-svg .bar-des { fill: #2f6b3a; opacity: .75; }
+  .geo-svg .js { fill: var(--accent); opacity: .12; stroke: var(--accent); stroke-dasharray: 4 3; }
+</style>
+</head>
+<body>
+<main>
+
+<header class="lesson-head">
+  <div class="kicker">第 2 课 · 论文第一章：数据从哪来</div>
+  <h1>Sentinel-1 数据：升轨降轨、轨道和 frame，江苏到底有什么</h1>
+  <p class="subtitle">20 分钟。学完后你能看懂 P06、P08 数据部分的每一句话，并说出自己论文能用哪些数据。</p>
+</header>
+
+<div class="box ask">
+  <div class="box-title">开课前：回顾第 1 课（不看笔记）</div>
+  <ol style="margin:.3rem 0">
+    <li>单张影像的相位为什么不能直接拿来测形变？要怎么办？</li>
+    <li>入射角 40°（cos40° ≈ 0.766），视线向速率 −15 mm/年，假设只有垂直运动，垂直速率是多少？</li>
+  </ol>
+  <details style="font-family:var(--sans);font-size:.88rem"><summary>核对答案</summary>
+  1. 单张相位丢了整圈数，还混着一个由像元内散射体决定的随机"常数"。要同一地点拍两次，两次相减，把常数消掉，得到这段时间视线向距离的变化（前提是散射体没变，否则就是失相干）。<br>
+  2. −15 ÷ 0.766 ≈ −19.6 mm/年，比视线向数值大。</details>
+</div>
+
+<div class="box goal">
+  <div class="box-title">本课目标</div>
+  <p>导师问"你用什么数据"，你要能答出：<strong>哪颗卫星、升轨还是降轨、哪几条轨道、哪几年、每隔几天一期</strong>。本课用我昨天从 ASF 数据库实际查到的江苏数据来讲，不是泛泛的介绍。</p>
+</div>
+
+<h2>1. 升轨和降轨：同一颗卫星，两个方向</h2>
+
+<p>Sentinel-1 绕着地球南北方向转圈（近极地轨道），每一圈都会经过江苏上空两次：</p>
+<ul>
+  <li><strong>升轨</strong> <em class="en">ascending</em>：从南往北飞。经过江苏时大约是<strong>傍晚 6 点</strong>左右（北京时间）。</li>
+  <li><strong>降轨</strong> <em class="en">descending</em>：从北往南飞。经过江苏时大约是<strong>清晨 6 点</strong>左右。</li>
+</ul>
+<p>这和卫星的设计一致：Sentinel-1 是"晨昏"太阳同步轨道，升交点地方时为 18:00<a class="cite" href="#s1">[1]</a>。我查到的江苏升轨影像，拍摄时间集中在 UTC 9–10 点（北京时间 17–18 点）；降轨集中在 UTC 21–22 点（北京时间 5–6 点）<a class="cite" href="#s2">[2]</a>。</p>
+
+<p>更关键的是<strong>朝哪边看</strong>。Sentinel-1 是"右视"雷达<a class="cite" href="#s3">[3]</a>，总是朝飞行方向的右侧斜着往下看：</p>
+
+<div class="sim" id="orbit">
+  <div class="box-title" style="font-family:var(--sans)">▶ 动画：升轨降轨往哪飞、往哪看</div>
+  <canvas width="720" height="420"></canvas>
+  <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.6rem">
+    <button class="prev opt-btn">◀ 上一步</button>
+    <button class="play opt-btn">▶ 播放</button>
+    <button class="next opt-btn">下一步 ▶</button>
+    <span class="step-label" style="color:var(--muted);font-family:var(--sans);font-size:.85rem;margin-left:.4rem"></span>
+  </div>
+  <p class="caption" style="min-height:4.5em;margin:.6rem 0 0;font-size:.95rem"></p>
+</div>
+
+<p>动画看完，下面这张静态图是总结：</p>
+<svg class="geo-svg" viewBox="0 0 640 275" role="img" aria-label="升轨向北飞向东看，降轨向南飞向西看">
+  <rect x="235" y="40" width="170" height="170" rx="8" class="land"/>
+  <text x="320" y="130" text-anchor="middle" class="t">地面</text>
+  <!-- 升轨 -->
+  <line x1="150" y1="215" x2="138" y2="45" class="asc" stroke-width="3"/>
+  <polygon points="138,32 131,50 146,49" class="asc"/>
+  <text x="100" y="237" class="asc" style="stroke:none">升轨：向北飞</text>
+  <line x1="150" y1="100" x2="225" y2="100" class="asc" stroke-width="2" stroke-dasharray="5 4"/>
+  <polygon points="232,100 220,94 220,106" class="asc"/>
+  <line x1="146" y1="160" x2="225" y2="160" class="asc" stroke-width="2" stroke-dasharray="5 4"/>
+  <polygon points="232,160 220,154 220,166" class="asc"/>
+  <text x="155" y="90" class="asc" style="stroke:none">向东看 →</text>
+  <!-- 降轨 -->
+  <line x1="490" y1="35" x2="502" y2="205" class="des" stroke-width="3"/>
+  <polygon points="503,218 495,200 510,199" class="des"/>
+  <text x="470" y="25" class="des" style="stroke:none">降轨：向南飞</text>
+  <line x1="492" y1="100" x2="415" y2="100" class="des" stroke-width="2" stroke-dasharray="5 4"/>
+  <polygon points="408,100 420,94 420,106" class="des"/>
+  <line x1="497" y1="160" x2="415" y2="160" class="des" stroke-width="2" stroke-dasharray="5 4"/>
+  <polygon points="408,160 420,154 420,166" class="des"/>
+  <text x="420" y="90" class="des" style="stroke:none">← 向西看</text>
+  <text x="320" y="268" text-anchor="middle" class="m">俯视图，上北下南。右视雷达：升轨向北飞，右手边是东；降轨向南飞，右手边是西。</text>
+</svg>
+
+<p>所以<strong>升轨从西边往东看，降轨从东边往西看</strong>，两者的视线方向不同。第 1 课说过，单一视线方向分不清垂直和水平运动；有了两个方向，就能把它们解开（第 5 课讲具体做法）。这就是"升降轨都有"之所以重要的原因。</p>
+
+<h2>2. 轨道、frame、burst：数据是怎么切块的</h2>
+
+<p>卫星每 12 天把同一组路线重复飞一遍，一共 175 条固定路线<a class="cite" href="#s1">[1]</a>。每条路线有一个编号，叫<strong>轨道号</strong> <em class="en">path / relative orbit</em>。P06 里的 "Path 142, 69, 171" 就是这个。</p>
+
+<p>一条轨道很长，数据要切成一块块来分发：</p>
+
+<div class="sim" id="slice">
+  <div class="box-title" style="font-family:var(--sans)">▶ 动画：从轨道一层层切到 burst</div>
+  <canvas width="720" height="420"></canvas>
+  <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.6rem">
+    <button class="prev opt-btn">◀ 上一步</button>
+    <button class="play opt-btn">▶ 播放</button>
+    <button class="next opt-btn">下一步 ▶</button>
+    <span class="step-label" style="color:var(--muted);font-family:var(--sans);font-size:.85rem;margin-left:.4rem"></span>
+  </div>
+  <p class="caption" style="min-height:4.5em;margin:.6rem 0 0;font-size:.95rem"></p>
+</div>
+
+<p>看完动画，用这张表对照一下：</p>
+
+<div class="table-wrap"><table>
+<tr><th>层级</th><th>是什么</th><th>程序员类比</th></tr>
+<tr><td><strong>轨道 path</strong></td><td>一条固定的飞行路线，每 12 天重复一次</td><td>一个数组</td></tr>
+<tr><td><strong>frame（景）</strong></td><td>沿轨道切出来的一块，约 250 km × 180 km（P06 p.3）</td><td>数组里的一个元素</td></tr>
+<tr><td><strong>子带 sub-swath</strong></td><td>每个 frame 横向分成 3 条（IW1、IW2、IW3），相互重叠约 2 km（P06 p.3）</td><td>元素里的 3 个字段</td></tr>
+<tr><td><strong>burst</strong></td><td>每条子带再纵向分成 8–10 小块（P06 p.3）</td><td>字段里的子数组</td></tr>
+</table></div>
+
+<p>所以说"P06 用了 6 个 frame、3 条轨道"，意思是：3 条路线上各取了一两块，拼起来盖住江苏。</p>
+
+<aside class="note">frame 编号并不总是固定的。我查 ASF 时，同一条轨道 142 上既有 frame 96、101、106、111，也零星出现 93、98、103 这样错开的编号。所以选数据时要以实际覆盖范围为准，不能只认编号。新的数据产品已经改成以 burst 为单位来编号，ASF 的结果表里就有 burst 编号这一列<a class="cite" href="#s2">[2]</a>。</aside>
+
+<h2>3. 多久拍一次：重访周期</h2>
+
+<ul>
+  <li><strong>一颗卫星</strong>：同一条轨道每 <strong>12 天</strong>拍一次<a class="cite" href="#s1">[1]</a>。</li>
+  <li><strong>两颗卫星交替</strong>（1A 和 1B 在同一轨道面上相差半圈<a class="cite" href="#s1">[1]</a>）：最快 <strong>6 天</strong>一次。</li>
+</ul>
+
+<p>Sentinel-1 家族的时间线：</p>
+<div class="table-wrap"><table>
+<tr><th>卫星</th><th>时间</th><th>对你的影响</th></tr>
+<tr><td>1A</td><td>2014 年发射，一直在用</td><td>主力数据源</td></tr>
+<tr><td>1B</td><td>2016 年起在轨；<strong>2021-12-23 故障，任务结束</strong><a class="cite" href="#s4">[4]</a></td><td>2022 年起只剩 12 天一期，降轨基本断了</td></tr>
+<tr><td>1C</td><td>2024-12-05 发射<a class="cite" href="#s5">[5]</a></td><td>2025 年起江苏开始有它的影像</td></tr>
+<tr><td>1D</td><td>计划于 2025 年 11 月发射<a class="cite" href="#s6">[6]</a></td><td>ASF 里 2026 年已有它的影像</td></tr>
+</table></div>
+
+<h2>4. 江苏到底有什么数据（ASF 实查）</h2>
+
+<p>我按江苏的范围查询了 ASF 数据库里 2014–2026 年全部的 Sentinel-1 IW SLC 影像，共 6037 景<a class="cite" href="#s2">[2]</a>。完整表格见<a href="../reference/jiangsu-s1-data.html">江苏 Sentinel-1 数据清单</a>。下面是关键部分：</p>
+
+<svg class="geo-svg" viewBox="0 0 640 220" role="img" aria-label="各轨道经度覆盖范围与江苏的关系">
+  <!-- x: 113E -> 40, 125E -> 620  => 48.33 px/deg -->
+  <rect x="198.3" y="18" width="270.7" height="170" class="js"/>
+  <text x="333" y="14" text-anchor="middle" class="m">江苏（约 116.3–121.9°E）</text>
+  <g>
+    <rect x="59.3" y="30" width="188.5" height="16" class="bar-asc"/><text x="252" y="43" class="m">升 40（只擦到西边）</text>
+    <rect x="136.7" y="55" width="212.7" height="16" class="bar-asc"/><text x="354" y="68" class="t">升 142</text>
+    <rect x="236.9" y="80" width="207.9" height="16" class="bar-asc"/><text x="449" y="93" class="t">升 69</text>
+    <rect x="333.5" y="105" width="222.3" height="16" class="bar-asc"/><text x="560" y="118" class="t">升 171</text>
+    <rect x="431.5" y="130" width="183.6" height="16" class="bar-asc"/><text x="425" y="143" class="m" text-anchor="end">升 98（只到最东端）</text>
+    <rect x="204.3" y="160" width="212.7" height="16" class="bar-des"/><text x="421" y="173" class="t">降 76（到不了东部沿海）</text>
+  </g>
+  <g class="m">
+    <text x="40" y="210">113°E</text><text x="185" y="210">116°E</text><text x="330" y="210">119°E</text><text x="475" y="210">122°E</text><text x="600" y="210">125°E</text>
+  </g>
+</svg>
+
+<p><strong>五个结论：</strong></p>
+<ol>
+  <li><strong>升轨 142 + 69 + 171 正好盖住全省</strong>，每年约 30 期（12 天一期），和 P06 用的轨道一样。</li>
+  <li><strong>2019–2021 年，升轨 69、171 加密到每年约 55 期</strong>（1A、1B 都在拍，约 6 天一期）。</li>
+  <li><strong>降轨只有 76 这一条比较完整，而且几乎全是 1B 拍的</strong>：2017–2021 年每年 25–29 期，2022–2024 年为 0。这正好印证了 P08 的说法："1B 结束任务，1A 在研究区几乎没有提供降轨数据"（P08 p.2）。</li>
+  <li><strong>升降轨同期都有：只有 2017–2021 年，而且降轨只覆盖江苏中西部。</strong></li>
+  <li><strong>2025 年后</strong>，1C、1D 的数据开始出现，降轨 76、3 又有了一些影像。</li>
+</ol>
+
+<div class="box trap">
+  <div class="box-title">⚠ 读论文时的一个发现</div>
+  <p>P06 说"江苏的降轨影像非常稀疏，远不够做时序分析"，所以只用了升轨（P06 p.2）。P06 的研究时段是 2016–2018 年。ASF 现在查到降轨 76 在这三年分别有 10、28、25 期：2016 年确实很少，2017、2018 年就不算少了。</p>
+  <p>为什么会有差别，我们<strong>无法核实</strong>：可能和作者当时从哥白尼数据中心下载时的可得情况有关，也可能是为了凑齐 2016 年就开始的连续序列。这不说明 P06 错了，但提醒你一件事：<strong>别人的数据结论不能直接搬到你的时间段上</strong>，要以自己查到的为准。</p>
+</div>
+
+<div class="box trap">
+  <div class="box-title">⚠ AI 可能坑你的地方</div>
+  <ul>
+    <li><strong>"Sentinel-1 每 6 天重访一次"</strong>：只有两颗卫星同时在拍时才成立。江苏 2022–2024 年是 12 天一期。AI 用 6 天来估算数据量或设计配对，就会出错。</li>
+    <li><strong>只说轨道号，不说方向</strong>：ASF 里"76"既有升轨也有降轨（升轨 76 只有零星几景，降轨 76 是那条主力降轨）。让 AI 写下载脚本时，一定要同时指定 <code>flightDirection</code>。</li>
+    <li><strong>想当然地"用升降轨分解"</strong>：AI 常常默认你有升降轨数据。在江苏，这只在 2017–2021 年的中西部成立。</li>
+    <li><strong>只认 frame 编号</strong>：编号会错位，要检查实际覆盖范围。</li>
+  </ul>
+</div>
+
+<h2>5. 这对你的论文意味着什么</h2>
+<p>时间段的选择是一个<strong>真正需要和导师一起定的决策</strong>，各有取舍：</p>
+<div class="table-wrap"><table>
+<tr><th>方案</th><th>好处</th><th>代价</th></tr>
+<tr><td>2017–2021 年</td><td>69、171 有 6 天一期的加密数据；中西部能用降轨 76 检验"水平运动可忽略"这个假设（P08 就是这样做的）</td><td>离现在较远</td></tr>
+<tr><td>2022 年至今</td><td>反映最新的沉降状况</td><td>只有升轨、12 天一期；2025 年后才有新卫星补充</td></tr>
+<tr><td>2017 年至今（全时段）</td><td>时间最长，能看沉降的变化趋势</td><td>数据量最大；前后两段的数据密度不同</td></tr>
+</table></div>
+<p>这一条会写进框架速览课的"导师讨论提纲"里。</p>
+
+<h2>6. 检验：不翻上文，直接回答</h2>
+<p class="quiz-score" id="quiz-score"></p>
+
+<div class="quiz" data-answer="0">
+  <p class="q">Q1.（第 1 课回顾）单张影像的相位为什么不能直接用来测形变？</p>
+  <div class="opts">
+    <button class="opt">混有散射常数，且丢失整周</button>
+    <button class="opt">卫星每次飞行的高度都不同</button>
+    <button class="opt">单张影像的空间分辨率太低</button>
+    <button class="opt">微波无法穿透云层和雨雾</button>
+  </div>
+  <div class="fb" data-right="对。两次相减才能把常数消掉，得到距离变化。" data-wrong="回想 ARSET 幻灯片第 7 页：相位里除了距离，还有什么？"></div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">Q2. 2022–2024 年，江苏某条升轨轨道大约多久拍一次？</p>
+  <div class="opts">
+    <button class="opt">约 6 天一次</button>
+    <button class="opt">约 12 天一次</button>
+    <button class="opt">约 24 天一次</button>
+    <button class="opt">约 1 天一次</button>
+  </div>
+  <div class="fb" data-right="对。1B 在 2021 年底故障后只剩 1A，一颗卫星的重复周期是 12 天，所以每年约 30 期。" data-wrong="1B 什么时候故障的？只剩一颗卫星时，重复周期是多少？"></div>
+</div>
+
+<div class="quiz" data-answer="3">
+  <p class="q">Q3. 卫星从北往南飞，雷达朝西边看。这是哪种情况？</p>
+  <div class="opts">
+    <button class="opt">升轨，傍晚六点前后</button>
+    <button class="opt">升轨，清晨六点前后</button>
+    <button class="opt">降轨，傍晚六点前后</button>
+    <button class="opt">降轨，清晨六点前后</button>
+  </div>
+  <div class="fb" data-right="对。往南飞是降轨；右视雷达往南飞时右手边是西；Sentinel-1 的降轨在清晨经过。" data-wrong="往南飞是升轨还是降轨？晨昏轨道：升轨傍晚，降轨清晨。"></div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <p class="q">Q4. 想在江苏用同一时期的升轨和降轨数据做对比，哪段时间最合适？</p>
+  <div class="opts">
+    <button class="opt">2017 至 2021 年间</button>
+    <button class="opt">2022 至 2024 年间</button>
+    <button class="opt">2014 至 2016 年间</button>
+    <button class="opt">任何时段都可以用</button>
+  </div>
+  <div class="fb" data-right="对。降轨 76 在 2017–2021 年每年有 25–29 期，而且只覆盖中西部。" data-wrong="降轨 76 是哪颗卫星拍的？它什么时候停的？"></div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <p class="q">Q5. AI 帮你写下载脚本，只写了"下载 path 76 的 SLC 数据"。最主要的问题是？</p>
+  <div class="opts">
+    <button class="opt">轨道号必须写成三位数</button>
+    <button class="opt">应该写 frame 而不写 path</button>
+    <button class="opt">没说明是升轨还是降轨</button>
+    <button class="opt">path 76 不经过江苏省</button>
+  </div>
+  <div class="fb" data-right="对。同一个编号既有升轨也有降轨，必须加上飞行方向。" data-wrong="回看第 4 节的表：76 出现了几次？"></div>
+</div>
+
+<details class="recall">
+  <summary>✍ 自由回忆（别跳过）</summary>
+  <p>导师问："江苏能用哪些 Sentinel-1 数据？你打算用哪几条轨道、什么时间段？为什么？"用 3 到 5 句话写下你的回答，<strong>写完再展开参考答案</strong>。</p>
+  <textarea class="recall-input" placeholder="在这里写……"></textarea>
+  <details>
+    <summary>脑子一片空白？用这几个提示，一句一句来（数字可以查表）</summary>
+    <ol style="font-size:.92rem">
+      <li>测沉降为什么只能用哨兵 1 号，不能用哨兵 2 号？</li>
+      <li>卫星往北飞叫什么轨？它朝哪边看？为什么？</li>
+      <li>盖住江苏全省要几条升轨？（可以查表）和 P06 一样吗？</li>
+      <li>江苏的降轨为什么只有 2017–2021 年比较全？</li>
+      <li>所以全省研究主要靠什么数据？换成垂直沉降要做什么假设？（接上第 1 课）</li>
+      <li>时间段怎么选？各有什么取舍？</li>
+    </ol>
+    <p style="font-size:.88rem;color:var(--muted)">把 6 句话连成一段，就是这一课的自由回忆。串起整课的那条线是：只有升轨 → 只能除以 cos θ → 要假设没有水平运动。</p>
+  </details>
+  <details>
+    <summary>参考答案</summary>
+    <p>江苏全省可以用升轨 142、69、171 三条轨道覆盖，和 P06 一致，每条轨道每年约 30 期（12 天一期），2019–2021 年 69、171 两条加密到约 6 天一期。降轨主要只有 76 一条，几乎都是 Sentinel-1B 拍的，只在 2017–2021 年有数据，而且只覆盖中西部；1B 在 2021 年底故障后，2022–2024 年没有降轨。所以全省研究主要依靠升轨。时间段要在两者之间权衡：选 2017–2021 年可以用降轨在局部检验"水平运动可忽略"的假设，选近几年能反映最新状况但只有升轨。具体选哪段需要和导师商量。</p>
+  </details>
+</details>
+
+<div class="box ask">
+  <div class="box-title">有疑问就问我</div>
+  <p>比如"为什么升轨是傍晚""burst 到底有什么用""我想看看某一年的具体影像列表"。数据清单里任何一个数字，我都可以带你回到原始查询结果里核对。</p>
+</div>
+
+<h2>主推资料</h2>
+<p><strong><a href="https://www.earthdata.nasa.gov/learn/trainings/introduction-synthetic-aperture-radar">NASA ARSET：Introduction to SAR，第 2 节 SAR Processing and Data Analysis</a></strong>。上次说留到第 2 课时看，就是现在。它讲 SAR 数据怎么获取和处理，可以和本课互相印证。</p>
+<p>动手看看：打开 <a href="https://search.asf.alaska.edu/">ASF Vertex</a>（需要免费注册 NASA Earthdata 账号才能下载，浏览不用），在地图上框选江苏，筛选 Sentinel-1、IW、SLC，看看能不能找到升轨 142、69、171 和降轨 76。</p>
+<p>速查：<a href="../reference/jiangsu-s1-data.html">江苏 Sentinel-1 数据清单</a> · <a href="../reference/insar-basics.html">InSAR 基础速查</a> · <a href="../reference/paper-knowledge-map.html">文献知识地图</a></p>
+
+<div class="box homework">
+  <div class="box-title">📖 阅读作业（明天复习时做）</div>
+  <p>打开 P06（江苏全省）和 P08（鲁苏沿海）的 PDF，读下面标出的部分。<strong>先在原文里找答案，再展开核对。</strong></p>
+  <ol>
+    <li>P06 为什么只用升轨？用了哪几条轨道、几个 frame？
+      <div class="where">P06 第 2 页最后一段到第 3 页开头（"2.1. S-1 Data and the Study Area"）</div>
+      <details><summary>核对答案</summary>作者通过哥白尼开放数据中心查询，发现江苏上空的降轨影像非常稀疏，远不够做时序分析，所以选了升轨。6 个 frame、3 条轨道：Path 142、69、171。</details></li>
+    <li>P06 怎么描述一个标准的 IW frame？大小多少，由什么组成？
+      <div class="where">P06 第 3 页第一段</div>
+      <details><summary>核对答案</summary>一个标准 IW frame（或 slice）在距离向和方位向约 250 × 180 km²，由 3 个子带组成，子带之间重叠约 2 km；每个子带由 8–10 个略有重叠的 burst 组成。SLC 的像素间距在斜距向和方位向分别为 2.3 m 和 14.0 m。</details></li>
+    <li>P06 表 1 里 Frame 1 用了多少景？时间跨度是多少？实际用的影像为什么比存档少？
+      <div class="where">P06 第 3 页表 1；原因在第 5–6 页</div>
+      <details><summary>核对答案</summary>58 景，2015-11-27 至 2018-12-05。原因：两景都在夏季（6–9 月）的干涉图受强对流层干扰被剔除，没有连进干涉网络的影像也一并弃用。</details></li>
+    <li>P08 为什么主要用 Sentinel-1A 的升轨？它一共用了多少条轨道、多少个 frame、多少景？
+      <div class="where">P08 第 2 页 "2.2. Datasets"</div>
+      <details><summary>核对答案</summary>Sentinel-1B 于 2021-12-23 因电源故障结束任务，而 Sentinel-1A 在研究区几乎没有提供降轨数据，所以主要用 1A 升轨。7 条轨道、16 个 frame，2017 年 3 月至 2023 年 12 月，原始 SLC 共 2486 景、约 10 TB。</details></li>
+    <li>（思考题）对照本课第 4 节的表：P06 说降轨"非常稀疏"，ASF 现在查到降轨 76 在 2016、2017、2018 年各有多少期？如果你的研究时段选 2017–2021 年，P06 这个结论还适用吗？
+      <details><summary>参考思路</summary>10、28、25 期。P06 的结论是针对它自己的时段和当时的数据可得情况说的，不一定适用于你。2017–2021 年降轨 76 每年有 25–29 期，对时序分析来说并不算少，但只覆盖江苏中西部。这可以作为和导师讨论数据方案时的一个具体问题。</details></li>
+  </ol>
+</div>
+
+<h2>来源</h2>
+<ol class="sources">
+  <li id="s1">Sentinel-1 轨道特征（近极地太阳同步、晨昏轨道、升交点地方时 18:00、单星 12 天重复、175 条轨道、两星相位相差 180°）：<a href="https://sentiwiki.copernicus.eu/web/s1-mission">Copernicus SentiWiki — S1 Mission</a>；<a href="https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-1/satellite-description/orbit">Sentinel-1 Orbit</a>。</li>
+  <li id="s2">ASF Search API 查询结果，2026-10-16，江苏范围矩形，IW SLC，共 6037 景。原始数据：<code>data/asf_s1_slc_jiangsu_bbox_queried_2026-10-16.csv</code>；汇总见<a href="../reference/jiangsu-s1-data.html">数据清单</a>。</li>
+  <li id="s3">Sentinel-1 为右视 SAR：<a href="https://docs.disasterscharter.org/missions/sar/sentinel-1/">International Charter — Sentinel-1</a>。</li>
+  <li id="s4">Sentinel-1B 任务结束：<a href="https://www.esa.int/Applications/Observing_the_Earth/Copernicus/Sentinel-1/Mission_ends_for_Copernicus_Sentinel-1B_satellite">ESA — Mission ends for Copernicus Sentinel-1B satellite</a>；P08 p.2 也记载了 2021-12-23 的电源故障。</li>
+  <li id="s5">Sentinel-1C 于 2024-12-05 发射：<a href="https://en.wikipedia.org/wiki/Sentinel-1C">Sentinel-1C</a>；<a href="https://www.un-spider.org/news-and-events/news/esa-successfully-launches-copernicus-sentinel-1c-satellite">UN-SPIDER</a>。</li>
+  <li id="s6">Sentinel-1D 计划于 2025-11-04 发射：<a href="https://satnews.com/2025/10/23/arianespace-plans-november-4-launch-of-copernicus-sentinel-1d-why-two-satellites-are-better-than-one">SatNews, 2025-10-23</a>。ASF 中已有 2026 年的 1D 影像。</li>
+  <li>本地文献：P06（江苏全省，Remote Sensing 2021）、P08（鲁苏沿海，JAG 2026），见 <code>paper/地表沉降论文</code>。</li>
+</ol>
+
+<nav class="lesson-nav">
+  <a href="0001-how-insar-measures-subsidence.html">← 第 1 课：雷达如何量出沉降</a>
+  <a href="0003-time-series-insar.html">下一课：时序 InSAR →</a>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/orbit-anim.js?v=2"></script>
+<script src="../assets/slicing-anim.js?v=5"></script>
+<script>OrbitAnim.mount(document.getElementById('orbit'));
+SlicingAnim.mount(document.getElementById('slice'));</script>
+</body>
+</html>

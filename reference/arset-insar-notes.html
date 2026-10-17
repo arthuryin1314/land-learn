@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARSET InSAR 笔记</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .k { border-top: 1px solid var(--rule); padding: .8rem 0 .3rem; }
+  .k h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+  .k p { margin: .25rem 0; font-size: .95rem; }
+  .pa::before { content: "📄 "; } .me::before { content: "🎯 "; } .me { color: var(--accent); }
+  .s { font-family: var(--sans); font-size: .78rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+<header class="lesson-head">
+  <div class="kicker">参考文档 · 外部课程笔记</div>
+  <h1>ARSET 第 4 节：SAR 干涉测量（幻灯片精读）</h1>
+  <p class="subtitle">Eric Fielding（JPL），NASA ARSET SAR 课程 2017。本地文件：<code>materials/ARSET-SAR2017-part4-slides.pdf</code>，共 31 页</p>
+</header>
+
+<div class="box goal">
+  <div class="box-title">怎么读这份笔记</div>
+  <p style="font-size:.9rem">📄 是幻灯片上的内容（标页码）；🎯 是它和你的第 1 课、你的论文的关系（我的说明）。第 30–31 页只有"数据获取与显示""预处理"两个标题页，PDF 里没有正文，具体内容应该在视频里讲。</p>
+</div>
+
+<h2>值得读的 7 个要点</h2>
+
+<div class="k"><h3>1. 单张影像的相位为什么没用：不只是"丢了整圈"</h3>
+<p class="pa">单张影像的相位 = (4π/λ)·距离 + "其他常数" + 噪声。"其他常数"取决于每个像元内散射体的分布，无法直接确定，而且每个像元都不一样。<b>观察距离变化的唯一办法是干涉：两次相减，把"其他常数"消掉。</b><span class="s">第 6–7 页</span></p>
+<p class="me">这一页比第 1 课讲得更深一层。单次相位没用有两个原因：丢了整圈，而且混着一个随机的"常数"。两次相减能消掉这个常数，<b>前提是像元里的散射体两次之间没有变</b>。散射体一变（农田翻耕、作物生长），常数就消不掉，这正是"失相干"。所以"两次相减"和"失相干"是同一件事的两面。</p></div>
+
+<div class="k"><h3>2. 相位里还混着地形</h3>
+<p class="pa">两次观测时卫星位置略有不同（两个位置之间的距离叫基线），所以干涉相位里同时有<b>地形项</b>和<b>形变项</b>。如果已知地形，就能把地形项去掉，只留下形变。<span class="s">第 14 页</span></p>
+<p class="me">这就是你文献里所有论文都要用一个 DEM（SRTM、Copernicus 等）的原因：用来减掉地形项。对应 P05 公式 (2) 里的 δφ_topo。</p></div>
+
+<div class="k"><h3>3. 为什么能测到毫米级</h3>
+<p class="pa">差分相位对形变的敏感度远大于对地形的敏感度：测地形只能到米级，测形变却能到毫米级。<span class="s">第 15 页</span></p>
+<p class="me">不用推公式，记住结论：DEM 有几米的误差影响不大，地表几毫米的变化却能被测出来。</p></div>
+
+<div class="k"><h3>4. 解缠，以及它为什么需要参考点</h3>
+<p class="pa">从测得的卷绕相位出发，<b>从某个任意的起点</b>开始解缠，再确定正确的 2π 整周模糊度。解缠后的结果 = 真实相位 + 一个常数。<span class="s">第 16 页</span></p>
+<p class="me">和第 1 课一样，不过多了一点：解缠是从任意起点开始数的，所以结果只是<b>相对值</b>，差一个整体常数。实际处理时要选一个认为"没动"的<b>参考点</b>当作 0。第 1 课提到的"哪种颜色算 0 取决于参考点"就是这个原因。</p></div>
+
+<div class="k"><h3>5. 失相干的四种来源</h3>
+<p class="pa">InSAR 信号失相干的原因：热噪声和处理噪声；几何与体散射差异；观测几何的旋转；随时间的随机运动。失相干会降低精度，也会影响解缠。<span class="s">第 17 页</span></p>
+<p class="pa">相干性 γ = γ<sub>v</sub>·γ<sub>g</sub>·γ<sub>t</sub>·γ<sub>c</sub>：体散射（树木）、几何（陡坡）、时间（渐变）、突变。<b>各项是相乘的</b>，任何一项低，整体就低，该区域的信息就丢了。<span class="s">第 18 页</span></p>
+<p class="me">对江苏来说，最主要的是<b>时间失相干 γ<sub>t</sub></b>：农田作物生长、翻耕。江苏地形平坦，陡坡带来的几何失相干基本不用担心。"相乘"这一点很关键：一个像元只要有一项很差，就救不回来了。</p></div>
+
+<div class="k"><h3>6. 视线向的盲区：一个真实例子</h3>
+<p class="pa">2015 年尼泊尔地震：降轨的视线方向恰好和地面的水平运动方向<b>垂直</b>，所以 InSAR 相位只看到了垂直分量。<span class="s">第 23 页</span></p>
+<p class="me">这就是第三节三角形图里那条<b>灰色线段</b>的真实版本：垂直于视线的运动，雷达完全看不到。</p></div>
+
+<div class="k"><h3>7. 地下水抽取造成沉降的经典案例</h3>
+<p class="pa">"The Ups and downs of Las Vegas (From Groundwater Pumping)"，Amelung et al., 2000。<span class="s">第 25 页</span></p>
+<p class="me">InSAR 监测抽地下水沉降的早期经典案例，可以作为你开题报告里"InSAR 监测沉降"这条线的起点之一。原文需要另外查找阅读。</p></div>
+
+<h2>可以跳过的部分</h2>
+<ul>
+  <li>第 8–12 页：单航过干涉、沿轨干涉、乒乓模式。这些是测地形和测运动速度的其他干涉方式，你用的是"同一颗卫星重复飞过"（repeat pass），用不到。</li>
+  <li>第 20–22、24、28 页：地震、火山、冰川、断层蠕滑、滑坡的例子，看个热闹即可。</li>
+  <li>第 26–27 页：用失相干反过来识别地震破坏区。思路有意思（失相干本身也是一种信息），但不是你的主线。</li>
+  <li>第 29 页：NISAR（L 波段）。P05 也提到 L 波段能穿透植被，了解即可。</li>
+</ul>
+
+<h2>看完幻灯片，检验自己</h2>
+<ol>
+  <li>单张影像的相位，除了"丢了整圈"，还有什么原因让它不能直接用？</li>
+  <li>为什么说"两次相减"和"失相干"是同一件事的两面？</li>
+  <li>江苏农田的失相干，主要属于 γ<sub>v</sub>、γ<sub>g</sub>、γ<sub>t</sub>、γ<sub>c</sub> 中的哪一项？</li>
+</ol>
+
+<p style="margin-top:2rem"><a href="../lessons/0001-how-insar-measures-subsidence.html">← 第 1 课</a> · <a href="insar-basics.html">InSAR 基础速查</a> · <a href="paper-knowledge-map.html">文献知识地图</a></p>
+</main>
+</body>
+</html>

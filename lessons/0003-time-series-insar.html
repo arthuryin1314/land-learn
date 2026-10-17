@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第 3 课 · 时序 InSAR</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<main>
+
+<header class="lesson-head">
+  <div class="kicker">第 3 课 · 论文第一章：从一堆干涉图到速率图</div>
+  <h1>时序 InSAR：配对网络、解方程、查错</h1>
+  <p class="subtitle">25 分钟。学完后你能解释"为什么用 SBAS""每期影像配几对"，并能看懂论文方法部分里那一串基线阈值。</p>
+</header>
+
+<div class="box ask">
+  <div class="box-title">开课前：回顾（不看笔记）</div>
+  <ol style="margin:.3rem 0">
+    <li>两景影像的相位相减后，噪声能消掉吗？</li>
+    <li>江苏只有升轨数据的地方，InSAR 测出来的形变有什么局限？要怎么处理？</li>
+  </ol>
+  <details style="font-family:var(--sans);font-size:.88rem"><summary>核对答案</summary>
+  1. 不能。相减只能消掉"散射常数"（前提是地物没变），噪声每次不一样，消不掉。本课会讲怎么用很多景影像把噪声平均掉。<br>
+  2. 只能测到视线方向，分不清垂直和水平。要换成垂直沉降，只能假设水平运动可以忽略，再除以 cos θ（P06、P08 都这样做，并给出了依据）。</details>
+</div>
+
+<div class="box goal">
+  <div class="box-title">本课目标</div>
+  <p>一张干涉图只告诉你<strong>两个日期之间</strong>变了多少，还混着噪声和解缠错误。你论文第一章要的是<strong>每个点在每个日期沉了多少</strong>（时间序列）和<strong>平均每年沉多少</strong>（速率图）。本课讲中间这一步怎么做，也就是"时序 InSAR"。</p>
+</div>
+
+<h2>1. 两种"基线"：挑哪些影像来配对</h2>
+
+<p>做干涉之前，要决定哪两景配成一对。论文里总会出现两个阈值，比如 P05 写"时间基线 60 天、垂直基线 200 m"（P05 p.6）：</p>
+<ul>
+  <li><strong>时间基线</strong>：两景相隔多少天。间隔越长，地物变化越大，<strong>时间失相干</strong>越严重（就是你上次总结的"间隔长，中间就可能发生大变化"）。</li>
+  <li><strong>垂直基线</strong>：两次拍摄时卫星位置相差多远（垂直于视线方向的距离）。相差越远，两次"看"的角度越不同，就会出现<strong>几何失相干</strong>。</li>
+</ul>
+
+<div class="sim" id="bl-t">
+  <div class="box-title" style="font-family:var(--sans)">▶ 动画 1：时间基线（同一块地，隔多久再拍）</div>
+  <canvas width="720" height="290"></canvas>
+  <div class="controls">
+    <label>影像 2 隔几天</label><input type="range" min="12" max="120" step="12" value="12"><span class="val"></span>
+  </div>
+  <button class="play" style="margin-top:.5rem;font-family:var(--sans)">▶ 播放</button>
+  <div class="readout"></div>
+</div>
+
+<div class="sim" id="bl-p">
+  <div class="box-title" style="font-family:var(--sans)">▶ 动画 2：垂直基线（同一个像素，换个位置再看）</div>
+  <canvas width="720" height="300"></canvas>
+  <div class="controls">
+    <label>两次的位置差</label><input type="range" min="0" max="90" step="1" value="0"><span class="val"></span>
+  </div>
+  <button class="play" style="margin-top:.5rem;font-family:var(--sans)">▶ 播放</button>
+  <div class="readout"></div>
+</div>
+
+<aside class="note">怎么看动画 2：一个像素里有好几个东西在反射（土块、秸秆、屋角……），卫星收到的是它们回波的<strong>叠加</strong>，就像几个复数相加（灰色小箭头首尾相接，彩色粗箭头是和）。换个位置看，各散射体之间的距离差变了，每个小箭头转的角度不一样，加出来的结果就变了。两次的"和"对不上，相减就没有意义。这跟第 1 课讲的"地物变了，常数消不掉"是同一个道理，只是这次变的不是地物，而是看的角度。<br>两个动画里的相干性数值、位置差都是<strong>示意</strong>（比例被放大了），用来看趋势，不是实测值。</aside>
+<p>对 Sentinel-1 来说，轨道控制得很紧，卫星被维持在一个直径约 100 m（均方根）的"管道"里飞行<a class="cite" href="#s1">[1]</a>，垂直基线通常不大。所以<strong>真正卡脖子的主要是时间基线</strong>。这也是 HyP3 这类服务习惯按"每期和后面几期配对"来安排的原因。</p>
+
+<h2>2. 配对网络：动手试试</h2>
+
+<p>先弄清"每期往后配几对"是什么意思。下面用 8 期影像一对一对地演示：</p>
+
+<div class="sim" id="pair">
+  <div class="box-title" style="font-family:var(--sans)">▶ 动画 3："每期往后配 k 对"是怎么配的</div>
+  <canvas width="720" height="330"></canvas>
+  <div class="controls">
+    <label>每期往后配</label><input name="k" type="range" min="1" max="3" step="1" value="2"><span class="k-val"></span>
+  </div>
+  <div style="margin-top:.5rem;font-family:var(--sans);display:flex;gap:.5rem">
+    <button class="play">▶ 播放</button><button class="step">下一步</button><button class="reset">重来</button>
+  </div>
+  <div class="readout"></div>
+</div>
+
+<p>配对的结果就是一张"哪两景之间做了干涉"的连线图。把所有影像画成点（横轴是日期，纵轴是垂直基线），每个干涉对画成一条线，就得到论文附录里常见的"基线图"。下面的模拟器把动画 3 放大到两年、61 期（12 天一期，模拟数据），你来决定怎么连线：</p>
+
+<div class="sim" id="net">
+  <div class="box-title" style="font-family:var(--sans)">▶ 配对网络模拟器</div>
+  <canvas width="720" height="300"></canvas>
+  <div class="controls">
+    <label>每期往后配</label><input name="k" type="range" min="1" max="5" step="1" value="2"><span class="k-val"></span>
+  </div>
+  <label style="font-family:var(--sans);font-size:.9rem;display:block;margin-top:.5rem"><input type="checkbox" name="summer"> 剔除"两景都在夏季（6–9 月）"的干涉对（P06 的做法）</label>
+  <div class="readout"></div>
+</div>
+
+<p>按顺序试三件事：</p>
+<ol>
+  <li><strong>拖到 1 对</strong>：每期只和下一期配，网络是一条链。看读数：<strong>一个三角形都没有</strong>。为什么这很要命，第 4 节讲。</li>
+  <li><strong>拖到 2、3 对</strong>：线变密，三角形出现了，额度也跟着涨。这就是上次方案表里 A（3 对）和 B（2 对）的区别。</li>
+  <li><strong>勾上"剔除夏季"</strong>，再把配对数拖回 1 或 2：网络会被<strong>切成好几段</strong>，夏季中间的影像成了"孤岛"。P06 正是这样：剔除夏季干涉图后，"没有连进最终干涉网络的影像也被弃用"（P06 p.5–6）。</li>
+</ol>
+
+<h2>3. 从网络解出时间序列：其实是解方程组</h2>
+
+<p>每张干涉图给出的是<strong>两个日期之间的形变差</strong>。设第 0 期是起点（形变记为 0），要求的是第 1、2、3 期各沉了多少（d₁、d₂、d₃）：</p>
+
+<pre><code>干涉对 (0,1)：  d1        = 观测值 a
+干涉对 (1,2)：  d2 - d1   = 观测值 b
+干涉对 (0,2)：  d2        = 观测值 c
+干涉对 (2,3)：  d3 - d2   = 观测值 d
+干涉对 (1,3)：  d3 - d1   = 观测值 e
+
+5 个方程，3 个未知数 → 用最小二乘求解</code></pre>
+
+<p>这就是"时序反演"。程序员看来就是解一个线性方程组。有两点要注意：</p>
+<ul>
+  <li><strong>方程比未知数多（有冗余），噪声会被平均掉。</strong>回答了开头的回顾题：单张干涉图消不掉噪声，但很多张干涉图联合求解，噪声就被压下去了。</li>
+  <li><strong>网络断开就解不了。</strong>如果 {0, 1} 和 {2, 3} 之间没有任何干涉对，你只知道两段内部各自怎么变，却不知道两段之间差多少。这就是模拟器里"被切成几段"的后果。</li>
+</ul>
+<p>论文里的说法：P05 和 P01 用<strong>奇异值分解（SVD）</strong>求解（P05 p.6；P01 p.4），SVD 的一个好处就是网络断成几段时也能给出解。</p>
+
+<h2>4. 相位闭合：用三角形查出解缠错误</h2>
+
+<p>第 1 课说过，形变太快或者失相干时，解缠可能<strong>数错圈</strong>，错就错整整一圈（视线向约 2.8 cm）。怎么发现？靠三角形：</p>
+
+<pre><code>三期 i、j、k，三张干涉图本来应该满足：
+  (i→j) + (j→k) - (i→k) = 0
+
+正常：  1.2 cm + 0.8 cm - 2.0 cm = 0          ✓
+(i→k) 解缠时少数了一圈，变成 2.0 - 2.8 = -0.8 cm：
+        1.2 cm + 0.8 cm - (-0.8 cm) = 2.8 cm  ✗ 正好差一圈 → 被抓到</code></pre>
+
+<p>这就是<strong>相位闭合</strong>（phase closure / loop closure）。你的文献里：</p>
+<ul>
+  <li>P04 用闭合差 ∇φ<sub>ij</sub> + ∇φ<sub>jk</sub> − ∇φ<sub>ik</sub> = 0 来消除解缠错误，原因是华北平原夏季作物生长导致低相干（P04 p.5）；</li>
+  <li>P12 更"狠"：一个像元只要参与的任何一个闭合环超过 |π|，就整个剔除。作者解释说，伊朗的沉降区大多是农田，植被区更容易失相干、更容易解缠出错（P12 p.4）；</li>
+  <li>P08 在 MintPy 里用"桥接"和"相位闭合"两种方法改正解缠错误（P08 p.4）。</li>
+</ul>
+
+<div class="box goal">
+  <div class="box-title">所以"每期配几对"不只是钱的问题</div>
+  <ul>
+    <li><strong>1 对</strong>：一条链，没有三角形，<strong>解缠错了也查不出来</strong>，一断就散。不能用。</li>
+    <li><strong>2 对</strong>：有三角形，能做闭合检查，冗余也有了。<strong>这是合理的下限。</strong></li>
+    <li><strong>3 对及以上</strong>：更稳，额度也更多。</li>
+  </ul>
+  <p>文献里的做法：P04 每景和后面两景配对（P04 p.5）；P11 用 HyP3 设时间基线 36 天（P11 p.4），在 12 天一期时大约就是往后配 3 期；P08 每景和前后各 5 景配对，每个 frame 超过 900 对（P08 p.3）。江苏又是农田多、易失相干的地方，和 P12 的情况相似，所以<strong>方案 B（2 对）是底线，A（3 对）更稳</strong>。这一条带去和导师讨论。</p>
+</div>
+
+<h2>5. SBAS 和 PS：两种时序方法</h2>
+
+<div class="table-wrap"><table>
+<tr><th></th><th>PS（永久散射体）</th><th>SBAS（小基线集）</th></tr>
+<tr><td>用哪些点</td><td>整个时间段里散射都很稳定的点，多是建筑等人工目标（P11 p.1）</td><td>"分布式散射体"，靠只用短时空基线的干涉对来保住相干性（P11 p.1；P05 p.6）</td></tr>
+<tr><td>优点</td><td>在这些稳定点上精度和可靠性更高（P11 p.2）</td><td>在植被区、农村地区能得到多得多的点（P11 p.2；P05 p.6）</td></tr>
+<tr><td>缺点</td><td>农田、自然地表上点很少</td><td>在 PS 点位置上精度和可靠性通常低一些（P11 p.2）</td></tr>
+<tr><td>你的文献</td><td>P02（湄公河）</td><td>P04、P05、P08、P11；P03、P07 两种点都用</td></tr>
+</table></div>
+
+<p><strong>对江苏来说</strong>：第二章要比较"农田和楼房"的沉降，如果只有楼房上有点，第二章就没法做。所以选 <strong>SBAS</strong>，理由和 P05 一样：要尽量多保住自然地表上的点。你计划用的 <strong>MintPy 就是 SBAS 类的工具</strong><a class="cite" href="#s2">[2]</a>，P08、P11 都用它（P08 p.4；P11 p.4）。</p>
+
+<div class="box trap">
+  <div class="box-title">⚠ AI 可能坑你的地方</div>
+  <ul>
+    <li><strong>"配对越多越好"</strong>：冗余确实更好，但每多一对都要额度和时间。要算账：AI 很少替你考虑 HyP3 每月 8000 的额度。</li>
+    <li><strong>"只用 PS-InSAR 就行"</strong>：AI 可能因为 PS 精度高而推荐它，但你的第二章需要农田上的点。</li>
+    <li><strong>剔除干涉图不看网络</strong>：照搬 P06"剔除夏季干涉图"的做法时，一定要检查网络有没有断开。MintPy 的网络修改步骤会处理这件事，但你要能看懂它的基线图。</li>
+    <li><strong>把线性速率当成全部</strong>：速率图是对时间序列做直线拟合得到的。采矿这类强烈非线性的形变，直线拟合会低估（P06 p.13 的徐州案例）。</li>
+  </ul>
+</div>
+
+<h2>6. 检验：不翻上文，直接回答</h2>
+<p class="quiz-score" id="quiz-score"></p>
+
+<div class="quiz" data-answer="2">
+  <p class="q">Q1. 对 Sentinel-1 来说，配对时主要受哪个因素限制？</p>
+  <div class="opts">
+    <button class="opt">垂直基线太大，几何失相干</button>
+    <button class="opt">卫星轨道号不同，无法配对</button>
+    <button class="opt">时间间隔越长，地物变化越大</button>
+    <button class="opt">两景的入射角完全不相同</button>
+  </div>
+  <div class="fb" data-right="对。Sentinel-1 轨道控制得很紧，垂直基线通常不大；主要矛盾是时间失相干。" data-wrong="Sentinel-1 的轨道被控制在约 100 m 的管道里，那么主要问题是哪种基线？"></div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <p class="q">Q2. 每期只和下一期配对（一条链），最致命的问题是？</p>
+  <div class="opts">
+    <button class="opt">没有三角形，查不出解缠错误</button>
+    <button class="opt">HyP3 不接受这种配对方式</button>
+    <button class="opt">干涉图的分辨率会自动降低</button>
+    <button class="opt">只能得到垂直方向的形变量</button>
+  </div>
+  <div class="fb" data-right="对。没有闭合环就没法做相位闭合检查，而且没有冗余，任何一张出问题，链就断了。" data-wrong="回想第 4 节：相位闭合需要什么形状？"></div>
+</div>
+
+<div class="quiz" data-answer="3">
+  <p class="q">Q3. 三张干涉图 (i→j)=1.0 cm，(j→k)=1.5 cm，(i→k)=−0.3 cm。最可能的情况是？</p>
+  <div class="opts">
+    <button class="opt">三张都正确，地面在抬升</button>
+    <button class="opt">(i→j) 少数了整整一圈</button>
+    <button class="opt">大气误差正好是 2.8 cm</button>
+    <button class="opt">(i→k) 少数了整整一圈</button>
+  </div>
+  <div class="fb" data-right="对。1.0 + 1.5 − (−0.3) = 2.8 cm，正好差一圈；(i→k) 本应是 2.5 cm，少数了一圈变成 −0.3 cm。注意：单靠这一个三角形，只能知道&quot;三张里有一张错了一圈&quot;，严格说不能确定是哪一张（例如 (i→j) 多数一圈也能凑出同样的闭合差）。选 (i→k) 是因为它的时间间隔最长、最容易失相干出错。要确定是哪一张，得看它参与的其他三角形：这也是要多配对的原因之一。" data-wrong="先算闭合差：(i→j) + (j→k) − (i→k) 等于多少？差一圈是多少 cm？"></div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">Q4. 为什么你的论文更适合 SBAS 而不是 PS？</p>
+  <div class="opts">
+    <button class="opt">SBAS 在建筑点上的精度更高</button>
+    <button class="opt">SBAS 能在农田保住更多测点</button>
+    <button class="opt">SBAS 不需要做相位解缠步骤</button>
+    <button class="opt">SBAS 只需要用到一景影像</button>
+  </div>
+  <div class="fb" data-right="对。第二章要比较农田和楼房，必须在农田上也有点。" data-wrong="你的第二章要比较哪两类地物？PS 在哪类地物上点多？"></div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <p class="q">Q5. 剔除了夏季干涉图之后，有几期影像不再和其他任何影像相连。会怎样？</p>
+  <div class="opts">
+    <button class="opt">它们会被自动插值补齐</button>
+    <button class="opt">形变精度反而会更高一些</button>
+    <button class="opt">它们没法接进时间序列</button>
+    <button class="opt">它们会改为使用降轨数据</button>
+  </div>
+  <div class="fb" data-right="对。没有干涉对相连，就没有方程把它们和其他日期联系起来。P06 就把这些没连上的影像弃用了。" data-wrong="想想第 3 节的方程组：一期影像如果不出现在任何方程里，还能求出它的形变吗？"></div>
+</div>
+
+<details class="recall">
+  <summary>✍ 自由回忆（别跳过）</summary>
+  <p>导师问："你为什么用 SBAS？每期影像打算配几对？为什么不是越少越省事、也不是越多越好？"用 3 到 5 句话回答，<strong>写完再展开参考答案</strong>。</p>
+  <textarea class="recall-input" placeholder="在这里写……"></textarea>
+  <details>
+    <summary>脑子一片空白？用这几个提示，一句一句来</summary>
+    <ol style="font-size:.92rem">
+      <li>一张干涉图只告诉你什么？</li>
+      <li>很多张干涉图合起来，相当于解什么？冗余有什么用？</li>
+      <li>只配 1 对会缺什么？（想想三角形）</li>
+      <li>配太多的代价是什么？（想想额度）</li>
+      <li>PS 和 SBAS 的点分别在哪里多？你的第二章需要哪种？</li>
+    </ol>
+  </details>
+  <details>
+    <summary>参考答案</summary>
+    <p>一张干涉图只给出两个日期之间的形变差，还带着噪声和可能的解缠错误。把很多张干涉图联合起来，相当于解一个方程比未知数多的方程组，冗余能把噪声平均掉；同时三张干涉图组成的三角形可以做相位闭合检查，发现数错圈的解缠错误。只配 1 对时网络是一条链，没有三角形，也没有冗余，所以每期至少配 2 对；但配得越多，HyP3 额度和处理时间越多，所以要在 2 到 3 对之间权衡。选 SBAS 是因为它用短基线干涉对保住了分布式散射体，在农田和农村地区能得到比 PS 多得多的点，而第二章需要比较农田和楼房的沉降。</p>
+  </details>
+</details>
+
+<h2>答疑</h2>
+
+<details class="recall" open>
+  <summary>答疑 1：SVD 和最小二乘有什么区别？</summary>
+  <p><strong>一个是"目标"，一个是"算法"。</strong>最小二乘是目标：找一组每期的形变 d，让"观测值 − 预测值"的平方和最小。SVD（奇异值分解）是实现这个目标的一种算法，可以理解为求矩阵的"伪逆"。</p>
+  <ul>
+    <li><strong>网络连通时</strong>：最小二乘只有唯一解，SVD 算出来的就是这个解，两者没有区别。</li>
+    <li><strong>网络断开时</strong>：方程组"秩亏"（rank deficient），段与段之间的偏移可以任意取，满足最小二乘的解有无穷多个。普通公式 <code>inv(AᵀA)·Aᵀ·y</code> 会直接报错，SVD 则从无穷多个解里挑出<strong>范数最小</strong>的那一个。这个"最小"是算法附加的假设，不是数据测出来的。</li>
+  </ul>
+  <p><strong>MintPy 实际怎么做</strong>（依据它的源码和默认配置<a class="cite" href="#s-mp1">[M1]</a><a class="cite" href="#s-mp2">[M2]</a>）：</p>
+  <ul>
+    <li>求解用 <code>scipy.linalg.lstsq</code>。源码注释写明它底层是 LAPACK 的 gelsd，"computes the minimum-norm solution … using the singular value decomposition"，也就是用 SVD 求最小范数的最小二乘解。所以在 MintPy 里，这两个词说的是同一件事的两个层面。</li>
+    <li>网络不连通时，它会打印警告：<em>"the network is NOT fully connected. Inversion result can be biased! Continue to use SVD to resolve the offset between different subsets."</em> 意思是结果<strong>可能有偏差</strong>，正是第 3 节说的"能算出数，不等于这个数可信"。</li>
+    <li>默认用<strong>加权</strong>最小二乘（<code>weightFunc = var</code>），可靠的干涉图权重大。配置文件注明：原始 SBAS（Berardino et al., 2002）相当于 <code>minNormVelocity = yes</code> 加 <code>weightFunc = no</code>（等权）。</li>
+  </ul>
+</details>
+
+<details class="recall" open>
+  <summary>答疑 2：MintPy 的基线图长什么样？</summary>
+  <p>MintPy 用 <code>plot_network.py</code> 画网络，默认输出 4 张图<a class="cite" href="#s-mp3">[M3]</a>：<code>pbaseHistory.pdf</code>（每期影像的垂直基线随时间变化）、<code>coherenceHistory.pdf</code>（相干性随时间变化）、<code>coherenceMatrix.pdf</code>（相干性矩阵）、<code>network.pdf</code>（配对网络）。论文附录里的"基线图"一般就是最后这张。下面按它的画法仿了一张，<strong>数据是模拟的</strong>：</p>
+  <div class="sim" id="mpnet" style="position:relative">
+    <div class="box-title" style="font-family:var(--sans)">▶ 仿 MintPy network.pdf（模拟数据，鼠标移到线上看详情）</div>
+    <canvas width="720" height="320"></canvas>
+    <div class="tip" style="display:none;position:absolute;pointer-events:none;background:var(--bg);border:1px solid var(--rule);border-radius:6px;padding:.3rem .5rem;font-family:var(--sans);font-size:.8rem;line-height:1.5"></div>
+    <div class="controls"><label>每期往后配</label><input name="k" type="range" min="1" max="5" step="1" value="3"><span class="k-val"></span></div>
+    <div class="readout"></div>
+  </div>
+  <p>怎么读这张图：</p>
+  <ul>
+    <li><strong>黑点</strong> = 一期影像，横坐标是日期，纵坐标是这期影像相对参考影像的垂直基线。</li>
+    <li><strong>实线</strong> = 保留下来的干涉对，颜色是这张干涉图的<strong>平均空间相干性</strong>（仿 MintPy 默认色表：红 = 低，蓝 = 高，显示范围 0.2–1.0）。</li>
+    <li><strong>虚线</strong> = 被剔除的干涉对（图例里写作 "Ifgram dropped"）。MintPy 的相干性剔除规则：平均相干性低于 0.7、<strong>并且</strong>不在最小生成树里的才剔掉。最小生成树保证剔完之后网络仍然连通。这个功能默认关闭（<code>mintpy.network.coherenceBased</code> 默认为 no），要自己打开；P08 打开了，阈值 0.7（P08 p.4）。</li>
+  </ul>
+  <p>和动画 3、配对网络模拟器对照着看：同样是"点 + 连线"，MintPy 只是多了"按相干性着色"和"剔除的画成虚线"两层信息。到第 7 课真跑 MintPy 时，你会拿到自己数据的这张图。</p>
+</details>
+
+<div class="box ask">
+  <div class="box-title">有疑问就问我</div>
+  <p>比如"最小二乘具体怎么算""SVD 和最小二乘有什么区别""MintPy 的基线图长什么样"。需要的话我可以把第 3 节的方程组做成可以改数值的小工具。</p>
+</div>
+
+<h2>主推资料</h2>
+<p><strong><a href="https://mintpy.readthedocs.io/en/latest/">MintPy 官方文档</a></strong>，以及它背后的论文：Yunjun, Fattahi &amp; Amelung (2019), <em>Small baseline InSAR time series analysis: Unwrapping error correction and noise reduction</em>, Computers &amp; Geosciences 133, 104331<a class="cite" href="#s2">[2]</a>。P08 引用的正是这篇（P08 p.4）。现在不用通读。文档首页没有流程图，只有一段流程说明（"2.1 Routine workflow"）；我按它和配置文件整理了一张<a href="../reference/mintpy-workflow.html">MintPy 处理流程速查卡</a>，先在上面认出本课讲的"修改网络、解缠错误改正、网络反演、速率"分别是哪一步。第 7 课实操时再细看。</p>
+<p>速查：<a href="../reference/insar-basics.html">InSAR 基础速查</a> · <a href="../reference/jiangsu-s1-data.html">江苏数据清单</a> · <a href="../reference/paper-knowledge-map.html">文献知识地图</a></p>
+
+<div class="box homework">
+  <div class="box-title">📖 阅读作业（明天复习时做）</div>
+  <p>这次读 5 篇里的方法段落，每段都不长。<strong>先在原文里找答案，再展开核对。</strong></p>
+  <ol>
+    <li>P05 为什么选 SBAS 而不是 PS？用了多少景影像、什么阈值、得到多少干涉对？
+      <div class="where">P05 第 6 页 "3.1. SBAS-InSAR" 第一段</div>
+      <details><summary>核对答案</summary>为了减轻复杂山区地形和异质植被造成的严重时间失相干（平均相干性 &lt; 0.8），选 SBAS，因为它利用分布式散射体，能最大化相干像元密度。103 景，时间基线 60 天、垂直基线 200 m，得到 310 个干涉对。</details></li>
+    <li>P08 每景和几景配对？每个 frame 有多少干涉图？在 MintPy 里怎么筛选干涉对、怎么处理解缠错误？
+      <div class="where">P08 第 3 页（配对）和第 4 页（MintPy 部分）</div>
+      <details><summary>核对答案</summary>每景和前后各 5 景配对，每个 frame 超过 900 个干涉图。MintPy 中：相干性阈值 0.7；以平均相干性的倒数为权重建立最小生成树（MST）；平均相干性低于阈值且不在 MST 里的干涉图被剔除；用桥接和相位闭合两种方法改正解缠错误。</details></li>
+    <li>P04 的相位闭合公式是什么？作者为什么担心华北平原的解缠错误？
+      <div class="where">P04 第 5 页 "SBAS-InSAR" 段落</div>
+      <details><summary>核对答案</summary>∇φ<sub>ij</sub> + ∇φ<sub>jk</sub> − ∇φ<sub>ik</sub> = 0。因为华北平原夏季作物生长导致低相干，可能引起解缠错误。另外配对方式是"前一景必须和后两景各配一对"，时间基线 80 天、垂直基线 250 m。</details></li>
+    <li>P12 怎么处理闭合误差？作者自己承认这种做法"有破坏性"，为什么仍然要这样做？
+      <div class="where">P12 第 4 页（方法部分，LiCSBAS 质量检查那一段）</div>
+      <details><summary>核对答案</summary>只要一个像元参与的任何一个闭合环的闭合差超过 |π|，就把这个像元从时间序列中剔除。原因是伊朗大多数沉降区是农田，植被区更容易失相干，也更容易产生解缠错误。参考点选所有闭合环 RMS 最小的像元。</details></li>
+    <li>P06 剔除夏季干涉图之后，还弃用了哪些影像？结合本课的模拟器，说说为什么要弃用。
+      <div class="where">P06 第 5–6 页，夏季大气问题那一段的结尾</div>
+      <details><summary>核对答案</summary>没有连进最终干涉网络的影像也被弃用，所以实际用的影像少于存档。原因（本课内容）：这些影像不出现在任何干涉对里，没有方程把它们和其他日期联系起来，求不出它们的形变。</details></li>
+  </ol>
+</div>
+
+<h2>来源</h2>
+<ol class="sources">
+  <li id="s1">Sentinel-1 轨道控制：卫星被维持在均方根直径约 100 m 的管道内。<a href="https://issfd.org/ISSFD_2012/ISSFD23_FDOP2_4_abstract.pdf">Sentinel-1: Operational approach to the orbit control strategy（ISSFD 2012）</a>。</li>
+  <li id="s2">MintPy：<a href="https://mintpy.readthedocs.io/en/latest/">官方文档</a>；Yunjun, Z., Fattahi, H., Amelung, F. (2019). Small baseline InSAR time series analysis: Unwrapping error correction and noise reduction. <em>Computers &amp; Geosciences</em>, 133, 104331。</li>
+  <li>SBAS 原始方法：Berardino et al. (2002), IEEE TGRS（P04、P05、P11 引用）；PS 方法：Ferretti et al.（P11 引用），入门可读 <a href="https://www.esa.int/About_Us/ESA_Publications/InSAR_Principles_Guidelines_for_SAR_Interferometry_Processing_and_Interpretation_br_ESA_TM-19">ESA TM-19</a>。</li>
+  <li>本地文献（<code>paper/地表沉降论文</code>）：P04 p.5；P05 p.6；P06 p.5–6, 13；P08 p.3–4；P11 p.1–2, 4；P12 p.4；P01 p.4。</li>
+  <li id="s-mp1">[M1] MintPy 默认配置 <code>smallbaselineApp.cfg</code>（第 1 节 modify_network、第 5 节 invert_network）：<a href="https://github.com/insarlab/MintPy/blob/main/src/mintpy/defaults/smallbaselineApp.cfg">GitHub insarlab/MintPy</a>（2026-10-17 读取）。</li>
+  <li id="s-mp2">[M2] MintPy 反演源码 <code>ifgram_inversion.py</code>（<code>estimate_timeseries</code> 的注释、网络不连通时的警告）：<a href="https://github.com/insarlab/MintPy/blob/main/src/mintpy/ifgram_inversion.py">GitHub</a>（2026-10-17 读取）。</li>
+  <li id="s-mp3">[M3] MintPy 网络绘图 <code>plot_network.py</code> 与 <code>utils/plot.py</code> 中的 <code>plot_network()</code>：<a href="https://github.com/insarlab/MintPy/blob/main/src/mintpy/plot_network.py">GitHub</a>（2026-10-17 读取）。</li>
+</ol>
+
+<nav class="lesson-nav">
+  <a href="0002-sentinel1-data.html">← 第 2 课：Sentinel-1 数据</a>
+  <span class="disabled">下一课：误差：大气、DEM、轨道（待生成）→</span>
+</nav>
+
+</main>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/network-sim.js?v=1"></script>
+<script src="../assets/baseline-anim.js?v=2"></script>
+<script src="../assets/pairing-anim.js?v=2"></script>
+<script src="../assets/mintpy-network.js?v=1"></script>
+<script>NetworkSim.mount(document.getElementById('net'));
+BaselineAnim.mount(document.getElementById('bl-t'), 'temporal');
+BaselineAnim.mount(document.getElementById('bl-p'), 'perp');
+PairingAnim.mount(document.getElementById('pair'));
+MintpyNetwork.mount(document.getElementById('mpnet'));</script>
+</body>
+</html>
